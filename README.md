@@ -142,17 +142,31 @@ At the moment, Java is needed for the `openapi-generator-cli` to work properly:
 sudo yum install java-11-openjdk-devel
 ```
 
-#### Install eccodes globally.
-Unfortunately, the python program for flex_extract is executing the `grib_set` command with `subprocess.check_call()`. I couldn't find a way to make this command available in the PATH when running the python script. So `eccodes` and the `grib_*` commands must be available in the path.
-
-```bash
-sudo yum install eccodes
-```
-
 #### Clone the repo
 
 ```bash
 git clone https://github.com/PrzPaul/CbrnAlert
+```
+
+#### Install python dependencies
+
+First, install [uv](https://docs.astral.sh/uv/#highlights) using your package manager or the following command:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Next, in the `CbrnAlert` directory set up a venv and the Python dependencies for the backend:
+
+```bash
+uv venv
+uv pip install ecmwf-api-client eccodes numpy cdsapi genshi
+```
+
+Activate the venv before setting up the backend, and make sure the venv python is used:
+```bash
+source .venv/bin/activate
+export PYTHON=python
 ```
 
 #### Set up the frontend
@@ -194,10 +208,10 @@ The Python package ecmwfapi could not be imported by pyimport. Usually this mean
 that you did not install ecmwfapi in the Python version being used by PyCall.
 ```
 
-The simplest way to overcome this is to configure PyCall to use a Julia-specific Python distribution. To do that:
+If this happens, it means your python interpreter was not set to the one from the venv created previously with `uv`. YOu can fix this situation by activating the venv and rebuilding PyCall:
 
 ```julia
-ENV["PYTHON"] = ""
+ENV["PYTHON"] = "python"
 using Pkg
 Pkg.build("PyCall")
 ```
