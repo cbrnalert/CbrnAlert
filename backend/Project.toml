@@ -50,6 +50,7 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 [compat]
 ATP45 = "0.1.0"
 EcRequests = "0.2.0"
-FlexExtract = "0.1.0"
+FlexExtract = "0.1.1"
 Flexpart = "0.2.2"
+Genie = "~5.33.6"
 julia = "1.10"

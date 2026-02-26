@@ -15,6 +15,7 @@ using MapMaths
 
 using CbrnAlertApp: STATUS_CREATED, STATUS_FINISHED, STATUS_ONGOING, STATUS_ERRORED
 using CbrnAlertApp: FLEXPART_RUNS_DIR
+using CbrnAlertApp: _area
 
 using CbrnAlertApp.Users
 using CbrnAlertApp.Users: current_user
