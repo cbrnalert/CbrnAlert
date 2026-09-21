@@ -188,6 +188,7 @@ export class MapPlotsService {
   // _colorScaleDepo() {
   //   return chroma.scale(['800000', 'F0E68C']);
   // }
+  private fixedConcMax: number | null = null; 
 
   _colorbarFromGeoRaster(geoRaster: any, plotType: PlotType): ColorbarData {
     let colors: string[] = [];
@@ -205,7 +206,10 @@ export class MapPlotsService {
         // ticks = ticks_depo;
       }
       const min = 0.001 * activity;
-      const max = geoRaster.maxs[0] * activity;
+      if (this.fixedConcMax === null) {
+        this.fixedConcMax = geoRaster.maxs[0] * activity;
+      }
+      const max = this.fixedConcMax;
       const length = 10;
       const step = Math.pow(max / min, 1 / (length - 1));
       for (let i = 0; i < length; i++) {

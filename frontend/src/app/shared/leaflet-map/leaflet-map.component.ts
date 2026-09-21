@@ -469,7 +469,8 @@ export class LeafletMapComponent implements OnInit {
             calculateBtn.click();
           }
         });
-        const items = ['percentage agreement', ...Array.from({ length: 9 }, (_, i) => `member ${i + 1}`), 'mean'];
+        const EnsembleCount = 50; //Nithin
+        const items = ['percentage agreement', ...Array.from({ length: EnsembleCount }, (_, i) => `member ${i + 1}`), 'mean'];
         calculateBtn.addEventListener('click', () => {
           calculateBtn.disabled = true;
           checkboxes.forEach(cb => cb.disabled = true);
