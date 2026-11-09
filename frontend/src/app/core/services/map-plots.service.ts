@@ -119,8 +119,11 @@ export class MapPlotsService {
       let newPlot = new MapPlot(type);
       newPlot.data = geoRaster;
       newPlot.visible = false;
-      newPlot.legendLayer = plotNames[index].split(' (')[0]; // remove the threshold value for legendLayer
-      newPlot.name = newPlot.name + " - " + plotNames[index];
+      // The final band is the ensemble mean contour, not an extra member.
+      const label = index === geoRasterStats.values.length - 1 ? 'mean' : `member ${index}`;
+      const plotName = index === 0 ? plotNames[0] : `${label} (${plotNames[0].split(' (')[1]}`;
+      newPlot.legendLayer = plotName.split(' (')[0]; // remove the threshold value for legendLayer
+      newPlot.name = newPlot.name + " - " + plotName;
       if (newPlot.legendLayer === "percentage agreement") {
         newPlot.metadata = this._colorbarFromGeoRaster(geoRaster, type);
         newPlot.selectedParams = selectedParams;

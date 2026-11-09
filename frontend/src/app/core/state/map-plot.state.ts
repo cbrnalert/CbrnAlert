@@ -22,7 +22,7 @@ export namespace MapPlotAction {
   export class AddStatsTiff {
     static readonly type = '[MapPlot] AddStatsTiff'
 
-    constructor(public plotData: Blob, public type: PlotType, public plotNames: string[], public selectedParams: ParameterEntry) { }
+    constructor(public plotData: Blob, public type: PlotType, public plotNames: string[], public selectedParams: ParameterEntry, public parentName?: string) { }
   }
 
   export class Hide {
@@ -93,6 +93,11 @@ export class MapPlotState {
   add(ctx: StateContext<MapPlotStateModel>, action: MapPlotAction.Add) {
     let mapPlot = this.mapPlotService.createMapPlotGeoJSON(action);
     ctx.setState(produce(draft => {
+      if (mapPlot.type === 'flexpart') {
+        draft.mapPlots.forEach(plot => {
+          if (plot.type === 'stats') plot.visible = false;
+        });
+      }
       draft.mapPlots.push(mapPlot);
     }))
 
@@ -101,9 +106,14 @@ export class MapPlotState {
 
   @Action(MapPlotAction.AddTiff)
   addTiff(ctx: StateContext<MapPlotStateModel>, action: MapPlotAction.AddTiff) {
-    this.mapPlotService.createMapPlotTiff(action).then(res => {
+    return this.mapPlotService.createMapPlotTiff(action).then(res => {
       let mapPlot = res;
       ctx.setState(produce(draft => {
+        if (mapPlot.type === 'flexpart') {
+          draft.mapPlots.forEach(plot => {
+            if (plot.type === 'stats') plot.visible = false;
+          });
+        }
         draft.mapPlots.push(mapPlot);
       }))
 
@@ -113,9 +123,16 @@ export class MapPlotState {
 
   @Action(MapPlotAction.AddStatsTiff)
   addStatsTiff(ctx: StateContext<MapPlotStateModel>, action: MapPlotAction.AddStatsTiff) {
-    this.mapPlotService.createMapPlotStatsTiff(action).then(res => {
-      let statsPlots = res;
+    return this.mapPlotService.createMapPlotStatsTiff(action).then(res => {
+      const statsPlots: MapPlot[] = res;
+      if (action.parentName) {
+        statsPlots.forEach(plot => plot.name = action.parentName + ' - ' + plot.name.split(' - ').slice(1).join(' - '));
+      }
       ctx.setState(produce(draft => {
+        if (action.parentName) {
+          draft.mapPlots = draft.mapPlots.filter(plot =>
+            plot.type !== 'stats' || !plot.name.startsWith(action.parentName + ' - '));
+        }
         draft.mapPlots.push(...statsPlots);
       }))
     });

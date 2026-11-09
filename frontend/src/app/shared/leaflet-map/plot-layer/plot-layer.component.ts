@@ -67,7 +67,7 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
               layer.setZIndex(1000);
             } else {
               if (!this.isContourPlot(this.mapPlot)) {
-                layer.setOpacity(0.2);
+                layer.setOpacity(this.mapPlot.legendLayer === 'percentage agreement' ? 0.6 : 0.2);
                 layer.setZIndex(500);
               }
             }
