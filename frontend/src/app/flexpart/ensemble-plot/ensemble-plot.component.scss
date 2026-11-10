@@ -1,0 +1,97 @@
+:host { display: contents; }
+
+.ensemble-panel {
+  position: relative;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  width: min(540px, calc(100vw - 32px));
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+  font-size: 12px;
+  &.expanded { width: min(1000px, calc(100vw - 32px)); height: min(760px, calc(100vh - 32px)); }
+  &.minimized { width: min(320px, calc(100vw - 32px)); }
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 2px 14px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  cursor: move;
+  h3 { margin: 0; font-size: 14px; font-weight: 500; }
+  .panel-actions { display: flex; flex-shrink: 0; }
+  button { width: 32px; height: 36px; line-height: 36px; cursor: pointer; }
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+}
+
+.panel-body {
+  padding: 10px 12px;
+  max-height: min(55vh, 440px);
+  overflow: auto;
+  &[hidden] { display: none; }
+  p { margin: 6px 0; }
+  .coordinate-controls { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; padding-bottom: 18px; }
+  .location-picker { width: 36px; height: 36px; line-height: 36px; flex-shrink: 0; }
+  mat-form-field { width: 116px; }
+  figure { margin: 0; }
+  img { display: block; width: 100%; height: auto; }
+  .figure-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  a { color: #3f51b5; text-decoration: underline; }
+  .error { color: #b00020; }
+  .plot-status { display: flex; align-items: center; justify-content: space-between; }
+}
+
+.expanded .panel-body { max-height: calc(85vh - 48px); }
+
+@media (max-width: 600px) {
+  .panel-body { max-height: 48vh; }
+  .expanded .panel-body { max-height: 70vh; }
+}
+
+::ng-deep .ensemble-pick-location, ::ng-deep .ensemble-pick-location .leaflet-interactive { cursor: crosshair !important; }
+
+.resized, .expanded {
+  display: flex;
+  flex-direction: column;
+  .panel-header { flex-shrink: 0; }
+  .panel-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    &[hidden] { display: none; }
+    figure { display: flex; flex-direction: column; flex: 1; min-height: 100px; }
+    .chart-image { position: relative; flex: 1; min-height: 0; }
+    img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+    .figure-actions, .coordinate-controls { flex-shrink: 0; }
+  }
+}
+
+.resize-handle { position: absolute; touch-action: none; z-index: 1; }
+.resize-n, .resize-s { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.resize-n { top: 0; }
+.resize-s { bottom: 0; }
+.resize-e, .resize-w { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.resize-e { right: 0; }
+.resize-w { left: 0; }
+.resize-ne, .resize-nw, .resize-se, .resize-sw { width: 12px; height: 12px; }
+.resize-ne, .resize-sw { cursor: nesw-resize; }
+.resize-nw, .resize-se { cursor: nwse-resize; }
+.resize-ne { top: 0; right: 0; }
+.resize-nw { top: 0; left: 0; }
+.resize-se { bottom: 0; right: 0; border-right: 3px solid #9ca3af; border-bottom: 3px solid #9ca3af; }
+.resize-sw { bottom: 0; left: 0; }
+
+// Align the visible input outlines with the buttons; reserve error space for the row.
+::ng-deep .ensemble-panel .coordinate-controls {
+  .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
+  .mat-form-field-subscript-wrapper { top: 100%; margin-top: 4px; }
+}

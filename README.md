@@ -6,6 +6,18 @@ This repo also contains the sources for the Single Page Application developed wi
 The API is defined using the [Open API](https://www.openapis.org/) specifications. The file with all the API definitions is availabe [here](https://github.com/PrzPaul/CbrnAlert/blob/master/api/api_docs.yaml). From these definitions, the API routes and data structures are generated in the Angular/Typescript world with [ng-openapi-gen](https://github.com/cyclosproject/ng-openapi-gen) and in the Julia/Genie world with [OpenAPI.jl](https://github.com/JuliaComputing/OpenAPI.jl) and [OpenAPI generator](https://openapi-generator.tech/).
 
 
+## Time series
+
+In **Plot results → Choose dimensions to plot**, select a run and click **Time series plot**. Enter latitude and longitude, or click **Pick on map** and place the draggable location marker. Click **Plot time series** to show the ensemble mean, median and P10–P90 band over all available output times, at the selected height. Deterministic runs use the same controls and show a single concentration line from the selected output. The chart opens in a draggable floating panel over the map, with minimize, expand and close controls. Drag any edge or corner to resize it. Download the figure as SVG from the panel.
+
+The backend samples the nearest model grid point. The shaded band represents ensemble spread, not a confidence interval. The ensemble mean file is excluded, and missing/nonfinite member values are excluded separately at each output time. The figure reports the sampled coordinates and shows the actual ensemble count in its legend.
+
+After updating Julia dependencies, restart the backend to load the plotting endpoint. Run the focused backend checks with:
+
+```bash
+julia --project=backend backend/test/ensemble_timeseries_test.jl
+```
+
 # Installation
 This section covers setting up the app for development and production. We provide two methods:
 

@@ -1135,3 +1135,53 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /flexpart/outputs/{outputId}/timeseries:
+    post:
+      tags: [Flexpart]
+      summary: Plot concentration time series at a location
+      description: Samples the nearest grid point over all output times. Ensemble runs show mean, median and P10-P90 spread across members, excluding the ensemble mean file and nonfinite or missing values. Deterministic runs show one concentration line from the selected output file.
+      parameters:
+        - $ref: '#/components/parameters/outputIdParam'
+        - in: query
+          name: layer
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude, dimensions]
+              properties:
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                dimensions:
+                  type: object
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                      - type: number
+                  description: Selected non-spatial dimension values, such as height. Time is left unselected.
+      responses:
+        '200':
+          description: Concentration time series, with ensemble statistics when applicable
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid coordinates, dimensions or unavailable simulation outputs
+        '404':
+          description: Output not found
+        '500':
+          description: Figure generation failed

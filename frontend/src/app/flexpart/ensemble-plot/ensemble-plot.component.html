@@ -1,0 +1,70 @@
+<ng-template #floatingPanel>
+  <section class="ensemble-panel" [class.expanded]="expanded && !minimized" [class.minimized]="minimized"
+      [class.resized]="panelHeight !== null && !minimized && !expanded"
+      [style.width.px]="!minimized && !expanded ? panelWidth : null"
+      [style.height.px]="!minimized && !expanded ? panelHeight : null"
+      cdkDrag cdkDragBoundary=".cdk-overlay-container" #panelDrag="cdkDrag" role="region" [attr.aria-label]="isEnsemble ? 'Ensemble time series' : 'Time series'">
+    <header class="panel-header" cdkDragHandle>
+      <h3>{{ isEnsemble ? 'Ensemble time series' : 'Time series' }}</h3>
+      <div class="panel-actions">
+        <button mat-icon-button type="button" (click)="minimized = !minimized"
+            [attr.aria-label]="minimized ? 'Restore time series' : 'Minimize time series'"
+            [matTooltip]="minimized ? 'Restore' : 'Minimize'" [attr.aria-expanded]="!minimized">
+          <mat-icon>{{ minimized ? 'expand_less' : 'remove' }}</mat-icon>
+        </button>
+        <button mat-icon-button type="button" (click)="toggleExpanded(panelDrag)"
+            [attr.aria-label]="expanded ? 'Reduce time series' : 'Expand time series'"
+            [matTooltip]="expanded ? 'Reduce' : 'Expand'">
+          <mat-icon>{{ expanded ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+        </button>
+        <button mat-icon-button type="button" (click)="closed.emit()" aria-label="Close time series" matTooltip="Close">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </header>
+    <div class="panel-body" [hidden]="minimized">
+      <form *ngIf="!figureUrl || editingLocation" [formGroup]="coordinates" (ngSubmit)="plot()" class="coordinate-controls">
+        <button class="location-picker" mat-icon-button type="button" (click)="pickOnMap()" [disabled]="!mapService.leafletMap"
+            [attr.aria-label]="picking ? 'Cancel map selection' : 'Pick location on map'"
+            [matTooltip]="picking ? 'Cancel map selection' : 'Pick on map'">
+          <mat-icon>{{ picking ? 'close' : 'place' }}</mat-icon>
+        </button>
+        <mat-form-field appearance="outline">
+          <mat-label>Latitude</mat-label>
+          <input matInput type="number" formControlName="latitude" min="-90" max="90" step="any">
+          <mat-error>Use −90 to 90.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Longitude</mat-label>
+          <input matInput type="number" formControlName="longitude" min="-180" max="180" step="any">
+          <mat-error>Use −180 to 180.</mat-error>
+        </mat-form-field>
+
+        <button mat-raised-button color="primary" type="submit" [disabled]="coordinates.invalid || loading">
+          {{ loading ? 'Plotting…' : 'Plot time series' }}
+        </button>
+      </form>
+      <p *ngIf="picking" role="status">Click the map to place the marker. Drag it to adjust the location.</p>
+      <div *ngIf="loading" role="status" class="plot-status">
+        Generating time series…
+        <button mat-button type="button" (click)="cancelPlot()">Cancel</button>
+      </div>
+      <p *ngIf="error" role="alert" class="error">{{ error }}</p>
+      <figure *ngIf="figureUrl">
+        <div class="chart-image">
+          <img [src]="figureUrl" [alt]="isEnsemble ? 'Ensemble concentration time series with mean and median lines and shaded P10–P90 spread' : 'Concentration time series'">
+        </div>
+        <div class="figure-actions">
+          <button mat-button type="button" (click)="editingLocation = !editingLocation">
+            {{ editingLocation ? 'Hide coordinates' : 'Change location' }}
+          </button>
+          <a [href]="figureUrl" download="time-series.svg">Download SVG</a>
+        </div>
+      </figure>
+    </div>
+    <ng-container *ngIf="!minimized">
+      <span *ngFor="let edge of resizeEdges" class="resize-handle" [ngClass]="'resize-' + edge"
+          (pointerdown)="startResize($event, edge, panelDrag)" aria-hidden="true"></span>
+    </ng-container>
+  </section>
+</ng-template>

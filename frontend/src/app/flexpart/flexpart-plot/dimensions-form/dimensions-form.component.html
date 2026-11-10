@@ -1,8 +1,12 @@
 <ng-container *ngIf="questions$ | async as questions">
-    <form *ngIf="questions.length !== 0" [formGroup]="formGroup" (ngSubmit)="onSubmit()" style="display: flex; align-items: center; gap: 2vw;">
+    <form *ngIf="questions.length !== 0" [formGroup]="formGroup" (ngSubmit)="onSubmit()" style="display: flex; align-items: center; gap: 2vw; flex-wrap: wrap;">
         <app-dyn-form [questions]="questions" [parentForm]="formGroup" formName="dimensions"></app-dyn-form>
-        <button mat-raised-button color="primary" type="submit" [disabled]="!formGroup.valid">Plot!</button>
+        <button class="plot-button" mat-raised-button color="primary" type="submit" [disabled]="!formGroup.valid">Map plot</button>
+        <button class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid"
+            (click)="ensembleVisible = !ensembleVisible">Time series plot</button>
     </form>
+    <app-ensemble-plot *ngIf="ensembleVisible" [isEnsemble]="isEnsemble" [outputId]="outputId" [layer]="layerName.value"
+        [dimensions]="formGroup.value.dimensions" (closed)="ensembleVisible = false"></app-ensemble-plot>
 </ng-container>
 
 <ng-container *ngIf="isLoading">

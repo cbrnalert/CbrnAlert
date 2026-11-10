@@ -1,3 +1,7 @@
+import { OverlayModule } from '@angular/cdk/overlay';
+import { DragDropModule } from '@angular/cdk/drag-drop';
+import { ReactiveFormsModule } from '@angular/forms';
+import { EnsemblePlotComponent } from './ensemble-plot/ensemble-plot.component';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -33,6 +37,7 @@ import { DialogModule } from 'src/app/shared/ui/dialogs/dialog.module';
 
 @NgModule({
     declarations: [
+        EnsemblePlotComponent,
         FlexpartPlotComponent,
         OutputsComponent,
         VariableSelectionComponent,
@@ -51,6 +56,9 @@ import { DialogModule } from 'src/app/shared/ui/dialogs/dialog.module';
         // ResultResolverService,
     ],
     imports: [
+        OverlayModule,
+        DragDropModule,
+        ReactiveFormsModule,
         FlexpartRoutingModule,
         CommonModule,
         SharedModule,

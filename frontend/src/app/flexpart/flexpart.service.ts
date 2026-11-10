@@ -1,3 +1,5 @@
+import { HttpClient } from '@angular/common/http';
+import { ApiConfiguration } from '../core/api/api-configuration';
 import { SliceResponseType } from './flexpart-plot-data';
 import { FlexpartRetrieveSimple } from './../core/api/models/flexpart-retrieve-simple';
 import { BehaviorSubject, combineLatest, Observable, of, Subject, throwError, firstValueFrom } from 'rxjs';
@@ -41,6 +43,8 @@ export class FlexpartService {
 
   constructor(
     private apiService: FlexpartApiService,
+    private http: HttpClient,
+    private apiConfiguration: ApiConfiguration,
   ) { }
 
   // getInputs(): Observable<FlexpartInput[]> {
@@ -284,6 +288,12 @@ export class FlexpartService {
         return of(questions);
       })
     );
+  }
+
+  getEnsembleTimeSeries(outputId: string, layer: string, latitude: number, longitude: number,
+    dimensions: {[key: string]: string | number}) {
+    return this.http.post(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/timeseries`,
+      { latitude, longitude, dimensions }, { params: { layer }, responseType: 'blob' });
   }
 
   getEnsembleStats(outputId: string, layerName: string, dims: {[key: string]: number}, threshold: number) {

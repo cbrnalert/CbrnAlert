@@ -41,6 +41,7 @@ db_setup()
     # @testset "Docs compliance" begin include("docs_compliance_test.jl") end
     @testset "Flexpart inputs" begin include("flexpartinputs_test.jl") end
     @testset "Flexpart outputs" begin include("flexpartoutputs_test.jl") end
+    include("ensemble_timeseries_test.jl")
     @testset "Flexpart runs" begin include("flexpartruns_test.jl") end
     # @includetests ARGS
 end
