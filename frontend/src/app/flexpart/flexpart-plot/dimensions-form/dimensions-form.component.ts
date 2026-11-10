@@ -25,6 +25,10 @@ export class DimensionsFormComponent implements OnChanges {
   formGroup: UntypedFormGroup;
   questions$: Observable<QuestionBase<any>[]>;
   isLoading = true;
+  ensembleVisible = false;
+  get isEnsemble(): boolean {
+    return !!this.flexpartService.runsSubject.value.find(run => run.uuid === this.runId)?.ensemble;
+  }
   dims: {[key: string]: string[] | number[]} = {};
 
   get responseFormat() {
@@ -40,6 +44,7 @@ export class DimensionsFormComponent implements OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    this.ensembleVisible = false;
     const newOutId = changes["outputId"] ? changes["outputId"].currentValue : this.outputId;
     let newLayer: string | undefined;
     if (changes["layerName"] && changes["layerName"].currentValue) {

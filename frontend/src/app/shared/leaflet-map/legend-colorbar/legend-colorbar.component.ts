@@ -26,7 +26,7 @@ export class LegendColorbarComponent implements OnInit {
   activeLayerUnit: string | null = null;
 
   @Input() set colorbar(value: ColorbarData) {
-    if (value.ticks[0] == 0) {
+    if (this.layerName === 'percentage agreement') {
       this.formatedTicks = value.ticks.map(i => (this.formatTick(i) + '%'));
     } else {
       this.formatedTicks = value.ticks.map(i => this.formatTick(i));
@@ -42,23 +42,12 @@ export class LegendColorbarComponent implements OnInit {
 
   }
 
-  ngOnInit(): void {
-    
-    this.mapPlotsService.selectedLayer$.subscribe(layerName => {
-      if (layerName) {
-        this.layerName = layerName;
-        this.updateLegend(layerName);
-      }
-    });
-    
-    this.mapPlotsService.activePlot$.subscribe((plot: MapPlot | null) => {
-      this.activePlot = plot;
-      if (this.activePlot) {
-          this.updateLegend(this.activePlot.legendLayer);
-      }
-      this.cdr.markForCheck();
-    });
+  @Input() set legendLayer(value: string) {
+    this.layerName = value;
+    this.setUnit(value);
   }
+
+  ngOnInit(): void {}
 
   formatTick(tick:number) {
     return String(tick)

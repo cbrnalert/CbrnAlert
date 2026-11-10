@@ -18,6 +18,10 @@ using GeoFormatTypes
 using ArchGDAL
 using ColorSchemes
 using Colors
+using HTTP
+
+include("ensemble_timeseries.jl")
+using .EnsembleTimeSeries
 
 using CbrnAlertApp.FlexpartRuns
 using CbrnAlertApp.FlexpartOutputs
@@ -222,6 +226,42 @@ function get_ensemble_stats()
     raster = Raster(stack_data; dims=(dims(ref_raster)[1:2]..., Band(1:size(stack_data, 3))), crs=EPSG(4326))
     raster = reverse(raster; dims=Y)
     _respond_tiff(raster)
+end
+
+function get_ensemble_timeseries()
+    output = _output_by_uuid(Genie.Router.params(:outputId))
+    isnothing(output) && return HTTP.Response(404, "Output not found")
+    payload = jsonpayload()
+    latitude = get(payload, "latitude", nothing)
+    longitude = get(payload, "longitude", nothing)
+    dimensions = get(payload, "dimensions", Dict())
+    if !(latitude isa Real) || !(longitude isa Real) || !(dimensions isa AbstractDict)
+        return HTTP.Response(400, "Enter valid coordinates and dimensions.")
+    end
+    run = related(output, FlexpartRun)[]
+    layer = Genie.Router.params(:layer)
+    tmpfile = joinpath(TMP_DIR_PATH, string(uuid4()) * ".svg")
+    started = time()
+    @info "Ensemble time series: reading members" output_id=Genie.Router.params(:outputId) latitude longitude
+    try
+        result = if run.ensemble
+            EnsembleTimeSeries.collect_series(joinpath(run.path, "output"), layer, latitude, longitude, dimensions)
+        else
+            EnsembleTimeSeries.collect_deterministic(output.path, layer, latitude, longitude, dimensions)
+        end
+        @info "Ensemble time series: rendering" elapsed_seconds=round(time() - started; digits=2) ensemble=run.ensemble
+        EnsembleTimeSeries.render(tmpfile, result; layer, dimensions, ensemble=run.ensemble)
+        @info "Ensemble time series: complete" elapsed_seconds=round(time() - started; digits=2)
+        return HTTP.Response(200, ["Content-Type" => "image/svg+xml", "Cache-Control" => "no-store"], read(tmpfile))
+    catch err
+        if err isa ArgumentError || err isa BoundsError || err isa KeyError
+            return HTTP.Response(400, "Location or dimensions are outside the available simulation data.")
+        end
+        @error "Ensemble time-series generation failed" exception=(err, catch_backtrace())
+        return HTTP.Response(500, "Unable to generate time series.")
+    finally
+        isfile(tmpfile) && rm(tmpfile)
+    end
 end
 
 end

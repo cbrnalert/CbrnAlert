@@ -48,6 +48,7 @@ api_routes = [
     ("/flexpart/outputs/:outputId::String/layers/", FlexpartOutputsController.get_layers, (method = GET,)),
     ("/flexpart/outputs/:outputId::String/dimensions/", FlexpartOutputsController.get_dimensions, (method = GET,)),
     ("/flexpart/outputs/:outputId::String/slice/", FlexpartOutputsController.get_slice, (method = POST,)),
+    ("/flexpart/outputs/:outputId::String/timeseries/", FlexpartOutputsController.get_ensemble_timeseries, (method = POST,)),
     ("/flexpart/outputs/:outputId::String/stats/", FlexpartOutputsController.get_ensemble_stats, (method = POST,))
 ]
 

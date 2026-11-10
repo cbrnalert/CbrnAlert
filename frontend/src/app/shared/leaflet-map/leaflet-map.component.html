@@ -3,7 +3,10 @@
     <div *ngFor="let mapPlot of mapPlots">
       <app-plot-layer [visible]="mapPlot.visible" [mapPlot]="mapPlot"></app-plot-layer>
     </div>
-    <app-legend-colorbar *ngIf="activePlot$ | async as activePlot" [colorbar]="$any(activePlot.metadata)"></app-legend-colorbar>
+    <div class="map-legends" *ngIf="activePlot$ | async as activePlot">
+      <app-legend-colorbar *ngFor="let plot of legendPlots(mapPlots, activePlot)"
+        [legendLayer]="plot.legendLayer" [colorbar]="$any(plot.metadata)"></app-legend-colorbar>
+    </div>
   </div>
 
   <div [leafletLayersControl]="layersControl"></div>

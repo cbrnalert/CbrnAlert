@@ -19,22 +19,24 @@
   display: flex;
   flex-direction: column;
   gap: 0.5vw;
-  font-size: 0.7vw;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 300px;
+
+  label, input, button, .status-wrapper, .member-status {
+    font-size: inherit;
+    line-height: inherit;
+  }
 
   .threshold-input-wrapper {
     display: flex;
     align-items: center;
     gap: 0.2vw;
   
-    .threshold-label {
-      font-size: 0.85vw;
-    }
-  
     .threshold-input {
       border: 0.05vw solid #ccc;
       border-radius: 0.1vw;
       padding: 0.1vw;
-      font-size: 0.85vw;
       width: 3vw;
     }
   }
@@ -44,7 +46,6 @@
     color: white;
     border: none;
     border-radius: 0.2vw;
-    font-size: 0.85vw;
     font-weight: 500;
     padding: 0.3vw 0.3vw;
     margin: 0.3vw;
@@ -63,7 +64,6 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    font-size: 0.6vw;
   }
 
   .checkbox-wrapper {
@@ -90,4 +90,19 @@
     to { transform: rotate(360deg); }
   }
 
+}
+.map-legends {
+  position: absolute;
+  bottom: calc(0.15 * var(--legendBoxSize));
+  right: calc(0.15 * var(--legendBoxSize));
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 1000;
+}
+
+::ng-deep .threshold-control {
+  .member-label { display: flex; flex-direction: column; margin-top: 8px; }
+  .member-input { border: 1px solid #ccc; padding: 4px; width: 100%; }
+  .member-status { color: #b00020; }
 }

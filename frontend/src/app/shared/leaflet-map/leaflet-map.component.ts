@@ -47,8 +47,9 @@ export class LeafletMapComponent implements OnInit {
   popDensityLayer100m: ImageMapLayer;
   popDensityLayer1km: ImageMapLayer;
   currentThresholdCtrl: Control | null = null;
-  thresholdControlList = new Map<string, { control: Control, collapsed: boolean, threshold: number | null, plotUnit: string, checkboxState: { [label: string]: boolean } }>();
+  thresholdControlList = new Map<string, { control: Control, collapsed: boolean, threshold: number | null, plotUnit: string, checkboxState: { [label: string]: boolean }, members?: string, ready?: boolean, hiddenConcentrationIds?: number[] }>();
   currentUnit: string | null;
+  private latestFlexpartPlotId = -1;
 
   options = {
     attributionControl: false, // Disable the default attribution control
@@ -90,7 +91,15 @@ export class LeafletMapComponent implements OnInit {
 
   ngOnInit(): void {
     this.activePlot$.subscribe(plot => {
-      if (!this.map) return;
+      if (!this.map || !plot) return;
+      if (plot.type === 'flexpart' && plot.id > this.latestFlexpartPlotId) {
+        this.latestFlexpartPlotId = plot.id;
+        this.thresholdControlList.forEach(stored => {
+          stored.checkboxState = {};
+          stored.members = '';
+          stored.hiddenConcentrationIds = [];
+        });
+      }
       this.map.closePopup();
       this.map.off('contextmenu');
       this.currentUnit = null;
@@ -133,6 +142,15 @@ export class LeafletMapComponent implements OnInit {
         this.map.on('contextmenu', this.onRightClick(plot));
       }
     });
+  }
+
+  legendPlots(plots: MapPlot[], active: MapPlot): MapPlot[] {
+    const parentName = active.type === 'stats' ? active.name.split(' - ')[0] : active.name;
+    const concentration = plots.find(p => p.type === 'flexpart' && p.name === parentName);
+    const agreement = plots.filter(p => p.visible && p.legendLayer === 'percentage agreement' &&
+      p.name.startsWith(`${parentName} - `));
+    if (agreement.length) return agreement;
+    return concentration ? (concentration.visible ? [concentration] : []) : (active.visible && active.metadata ? [active] : []);
   }
 
   onMapReady(map: LeafletMap) {
@@ -457,91 +475,124 @@ export class LeafletMapComponent implements OnInit {
 
         // Logic behind "Calculate statistics" button
         input.addEventListener('input', () => {
-          const value = parseFloat(input.value);
-          const valid = !isNaN(value) && value > 0;
+          const value = Number(input.value);
+          const valid = Number.isFinite(value) && value > 0;
           calculateBtn.disabled = !valid;
-          if (valid && storedCtrl) {
-            storedCtrl.threshold = value;
-          }
+
         });
         input.addEventListener('keydown', (event: KeyboardEvent) => {
           if (event.key === 'Enter' && !calculateBtn.disabled) {
             calculateBtn.click();
           }
         });
-        const EnsembleCount = 50; //Nithin
-        const items = ['percentage agreement', ...Array.from({ length: EnsembleCount }, (_, i) => `member ${i + 1}`), 'mean'];
+        const agreementLabel = DomUtil.create('label', 'checkbox-wrapper', optionsWrapper);
+        const agreement = DomUtil.create('input', '', agreementLabel) as HTMLInputElement;
+        agreement.type = 'checkbox';
+        agreement.checked = !!storedCtrl?.checkboxState['percentage agreement'];
+        agreementLabel.appendChild(document.createTextNode('Percentage agreement'));
+        const memberLabel = DomUtil.create('label', 'member-label', optionsWrapper);
+        memberLabel.innerText = 'Member numbers:';
+        const members = DomUtil.create('input', 'member-input', memberLabel) as HTMLInputElement;
+        members.type = 'text';
+        members.placeholder = 'e.g. 1, 12, 50 or all';
+        members.value = storedCtrl?.members || '';
+        const memberStatus = DomUtil.create('div', 'member-status', optionsWrapper);
+        memberStatus.setAttribute('role', 'status');
+        const updateVisibility = (labels: string[], visible: boolean) => {
+          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
+          const actions = plots.filter(p => labels.some(label =>
+            p.name === `${plot.name} - ${label} (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`
+          )).map(p => visible ? new MapPlotAction.Show(p.id) : new MapPlotAction.Hide(p.id));
+          if (actions.length) this.store.dispatch(actions);
+        };
+        const toggleConcentration = (showAgreement: boolean) => {
+          if (!storedCtrl) return;
+          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
+          if (showAgreement) {
+            storedCtrl.hiddenConcentrationIds = plots.filter(p => p.type === 'flexpart' && p.visible).map(p => p.id);
+            const actions = storedCtrl.hiddenConcentrationIds.map(id => new MapPlotAction.Hide(id));
+            if (actions.length) this.store.dispatch(actions);
+          } else {
+            const actions = (storedCtrl.hiddenConcentrationIds || []).map(id => new MapPlotAction.Show(id));
+            storedCtrl.hiddenConcentrationIds = [];
+            if (actions.length) this.store.dispatch(actions);
+          }
+        };
+        agreement.addEventListener('change', () => {
+          if (storedCtrl) storedCtrl.checkboxState['percentage agreement'] = agreement.checked;
+          toggleConcentration(agreement.checked);
+          updateVisibility(['percentage agreement'], agreement.checked);
+        });
+        members.addEventListener('input', () => {
+          const value = members.value.trim();
+          const allMembers = value.toLowerCase() === 'all';
+          const tokens = value ? value.split(',').map(token => token.trim()) : [];
+          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
+          const available = plots.filter(p => p.type === 'stats' && /^member \d+$/.test(p.legendLayer) &&
+            p.name === `${plot.name} - ${p.legendLayer} (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`
+          ).map(p => Number(p.legendLayer.slice('member '.length)));
+          const selected = allMembers ? [...new Set(available)] : [...new Set(tokens.map(Number))];
+          const valid = allMembers || (tokens.every(token => /^\d+$/.test(token)) &&
+            selected.every(number => available.includes(number)));
+          const error = 'Enter member numbers separated by commas, or all.';
+          members.setCustomValidity(valid ? '' : error);
+          memberStatus.innerText = valid ? '' : error;
+          if (!valid || !storedCtrl) return;
+          storedCtrl.members = members.value;
+          const previous = Object.keys(storedCtrl.checkboxState).filter(label => label.startsWith('member '));
+          const next = selected.map(number => `member ${number}`);
+          updateVisibility(previous.filter(label => !next.includes(label)), false);
+          updateVisibility(next, true);
+          previous.forEach(label => delete storedCtrl.checkboxState[label]);
+          next.forEach(label => storedCtrl.checkboxState[label] = true);
+        });
+        agreement.disabled = members.disabled = !storedCtrl?.ready;
         calculateBtn.addEventListener('click', () => {
+          const threshold = Number(input.value);
+          input.disabled = true;
           calculateBtn.disabled = true;
-          checkboxes.forEach(cb => cb.disabled = true);
-          checkboxes.forEach(cb => cb.checked = false);
+          agreement.disabled = members.disabled = true;
+          toggleConcentration(false);
+          updateVisibility(Object.keys(storedCtrl?.checkboxState || {}), false);
+          agreement.checked = false;
+          members.value = '';
+          memberStatus.innerText = '';
           if (storedCtrl) {
             storedCtrl.checkboxState = {};
+            storedCtrl.members = '';
+            storedCtrl.ready = false;
+            storedCtrl.threshold = threshold;
           }
-          statusWrapper.innerHTML = '';
-          const spinner = document.createElement('div');
-          spinner.className = 'spinner';
-          statusWrapper.appendChild(spinner);
-          const statsItems = items.map(item => `${item} (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`);
+          statusWrapper.innerHTML = '<div class="spinner"></div>';
           const dimsIndices: { [key: string]: number } = {};
           ['Ti', 'height'].forEach(key => {
             const entry = plot.selectedParams![key];
-            if (entry) {
-              dimsIndices[key] = entry.index;
-            }
+            if (entry) dimsIndices[key] = entry.index;
           });
-          this.flexpartService.getEnsembleStats(plot.fpOutputId!, plot.legendLayer, dimsIndices, parseFloat(input.value)).subscribe(
-            result => {
-              this.store.dispatch(new MapPlotAction.AddStatsTiff(result, 'stats', statsItems, plot.selectedParams!))
-              statusWrapper.innerHTML = 'Done!';
-              setTimeout(() => {
-                statusWrapper.innerHTML = '';
-              }, 3000);
-              checkboxes.forEach(cb => cb.disabled = false);
-              calculateBtn.disabled = true;
-            }
-          );
-        });
-
-        // List of checkboxes &
-        // Logic behind clicking them
-        const checkboxes: HTMLInputElement[] = [];
-        items.forEach(labelText => {
-          const checkboxWrapper = DomUtil.create('label', 'checkbox-wrapper', optionsWrapper);
-          const checkbox = DomUtil.create('input', '', checkboxWrapper) as HTMLInputElement;
-          checkbox.name = labelText;
-          checkbox.type = 'checkbox';
-          checkbox.disabled = true;
-          checkbox.style.marginRight = '0.5vw';
-          if (storedCtrl && storedCtrl.checkboxState[checkbox.name] == true) {
-            checkbox.checked = storedCtrl.checkboxState[checkbox.name];
-          }
-          checkbox.addEventListener('change', () => {
-            if (storedCtrl) {
-              storedCtrl.checkboxState[checkbox.name] = checkbox.checked;
-            }
-            this.mapPlots$.pipe(take(1)).subscribe(mapPlots => {
-              const statsPlot = mapPlots.find(p => p.name === plot.name + ' - ' + checkbox.name + ` (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`);
-              if (statsPlot) {
-                if (!statsPlot.visible) {
-                  this.store.dispatch([ new MapPlotAction.Show(statsPlot.id) ]);
-                  if (checkbox.name === 'percentage agreement') {
-                    this.store.dispatch([ new MapPlotAction.SetActive(statsPlot.id) ]);
-                  }
-                } else {
-                  this.store.dispatch(new MapPlotAction.Hide(statsPlot.id));
-                }
-              }
-            });
+          const failed = () => {
+            statusWrapper.innerText = 'Unable to calculate statistics. Please try again.';
+            input.disabled = false;
+            calculateBtn.disabled = false;
+          };
+          this.flexpartService.getEnsembleStats(plot.fpOutputId!, plot.legendLayer, dimsIndices, threshold).subscribe({
+            next: result => {
+              this.store.dispatch(new MapPlotAction.AddStatsTiff(result, 'stats',
+                [`percentage agreement (${threshold} ${storedCtrl?.plotUnit})`], plot.selectedParams!, plot.name)).subscribe({
+                complete: () => {
+                  statusWrapper.innerText = 'Done!';
+                  input.disabled = false;
+                  if (storedCtrl) storedCtrl.ready = true;
+                  agreement.disabled = members.disabled = false;
+                },
+                error: failed
+              });
+            },
+            error: failed
           });
-          checkboxes.push(checkbox);
-          checkboxWrapper.appendChild(document.createTextNode(checkbox.name));
         });
-        if (storedCtrl && storedCtrl.threshold) {
-          checkboxes.forEach(cb => cb.disabled = false);
-        }
 
         DomEvent.disableClickPropagation(container);
+        DomEvent.disableScrollPropagation(container);
         return container;
       },
 
