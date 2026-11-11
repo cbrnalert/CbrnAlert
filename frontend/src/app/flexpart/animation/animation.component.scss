@@ -1,0 +1,45 @@
+:host { display: contents; }
+.animation-panel { height: 100%; display: flex; flex-direction: column; background: white; border-top: 1px solid #ccc; box-shadow: 0 -3px 12px #0002; color: #374151; font-size: 12px; }
+.animation-controls, .location-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 10px; }
+.animation-controls { border-bottom: 1px solid #eee; }
+.animation-controls button, .location-controls > button:first-child { width: 30px; height: 30px; line-height: 30px; }
+.animation-controls mat-icon, .location-controls mat-icon { font-size: 21px; width: 21px; height: 21px; }
+.timestep { font-variant-numeric: tabular-nums; flex: 1; min-width: 200px; }
+.speed { display: flex; align-items: center; gap: 5px; }
+.speed select, .location-controls input { border: 1px solid #ccc; border-radius: 3px; padding: 3px 5px; background: white; }
+.location-controls { align-items: flex-end; justify-content: center; }
+.location-controls label { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.location-controls > button:first-child { margin-bottom: 0; }
+.location-controls input { width: 100px; height: 30px; box-sizing: border-box; }
+.location-controls button[type=submit] { line-height: 28px; }
+.animation-chart { flex: 1; min-height: 80px; width: 100%; }
+.animation-error { color: #b00020; padding: 2px 12px; }
+.animation-colorbar { position: absolute; right: 12px; bottom: 30px; z-index: 1100; display: flex; flex-direction: column; gap: 5px; background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 5px #0005; font-size: 11px; pointer-events: none; }
+.animation-colorbar[hidden] { display: none; }
+.colorbar-unit { text-align: center; }
+.colorbar-scale { display: flex; gap: 6px; }
+.color-strip { display: flex; flex-direction: column; width: 14px; height: 160px; }
+.color-strip i { flex: 1; }
+.colorbar-ticks { display: flex; flex-direction: column; justify-content: space-between; height: 174px; margin-top: -7px; }
+::ng-deep .flexpart-animation-dock { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 85%; height: min(320px, 48%); min-width: min(480px, calc(100% - 16px)); max-width: calc(100% - 16px); min-height: min(260px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow: hidden; z-index: 1100; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+::ng-deep .animation-active .leaflet-bottom { bottom: calc(var(--animation-dock-height, 320px) + 16px); }
+::ng-deep .animation-active.ensemble-pick-location, ::ng-deep .animation-active.ensemble-pick-location .leaflet-pane, ::ng-deep .animation-active.ensemble-pick-location .leaflet-interactive { cursor: crosshair !important; }
+// Keep the slider handles and selection, without duplicating the chart inside it.
+::ng-deep .animation-chart .rangeslider-rangeplot { display: none !important; }
+::ng-deep .animation-active .map-legends, ::ng-deep .animation-active .threshold-control { display: none !important; }
+@media(max-width: 700px) { .animation-controls, .location-controls { gap: 4px; padding: 2px 6px; } .speed { display: none; } .location-controls input { width: 75px; } .timestep { min-width: 150px; font-size: 11px; } }
+
+.resize-handle { position: absolute; touch-action: none; z-index: 1; }
+.resize-n, .resize-s { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.resize-n { top: 0; }
+.resize-s { bottom: 0; }
+.resize-e, .resize-w { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.resize-e { right: 0; }
+.resize-w { left: 0; }
+.resize-ne, .resize-nw, .resize-se, .resize-sw { width: 12px; height: 12px; }
+.resize-ne, .resize-sw { cursor: nesw-resize; }
+.resize-nw, .resize-se { cursor: nwse-resize; }
+.resize-ne { top: 0; right: 0; }
+.resize-nw { top: 0; left: 0; }
+.resize-se { bottom: 0; right: 0; border-right: 3px solid #9ca3af; border-bottom: 3px solid #9ca3af; }
+.resize-sw { bottom: 0; left: 0; }

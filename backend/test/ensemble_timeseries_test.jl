@@ -29,6 +29,11 @@ using .EnsembleTimeSeries
         result = (; times=[DateTime(2026, 1, 1), DateTime(2026, 1, 1, 1)], stats...,
             member_count=3, latitude=50.0, longitude=4.0)
         path = joinpath(dir, "time-series.svg")
+        payload = EnsembleTimeSeries.series_payload(result; layer="spec001_mr", ensemble=true)
+        @test payload["memberCount"] == 3
+        @test payload["mean"] == stats.mean
+        @test payload["times"] == ["2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z"]
+        @test payload["unit"] == "ng/m³"
         EnsembleTimeSeries.render(path, result; layer="spec001_mr", dimensions=Dict("height"=>100))
         svg = read(path, String)
         @test occursin("<svg", svg)
@@ -64,6 +69,12 @@ end
         @test deterministic.times == [DateTime(2026, 1, 1), DateTime(2026, 1, 1, 1)]
         @test !hasproperty(deterministic, :mean)
         @test !hasproperty(deterministic, :lower)
+        deterministic_payload = EnsembleTimeSeries.series_payload(deterministic; layer="spec001_mr", ensemble=false)
+        @test deterministic_payload["concentration"] == [1.0, 4.0]
+        @test !haskey(deterministic_payload, "mean")
+        @test !haskey(deterministic_payload, "memberCount")
+        missing_payload = EnsembleTimeSeries.series_payload(merge(deterministic, (concentration=[NaN, 4.0],)); layer="spec001_mr", ensemble=false)
+        @test isnothing(missing_payload["concentration"][1])
         deterministic_path = joinpath(directory, "deterministic.svg")
         EnsembleTimeSeries.render(deterministic_path, deterministic; layer="spec001_mr", dimensions=Dict("height"=>100.0), ensemble=false)
         @test occursin("<svg", read(deterministic_path, String))

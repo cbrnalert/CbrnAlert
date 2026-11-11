@@ -12,6 +12,8 @@ type MapEvent = 'newMarker' | 'areaSelection'
 })
 export class MapService {
 
+    animationActive = false;
+
     selectionRectangle?: Rectangle    // refers to area being selected by user
     selectionMarker?: Marker
     retrievedRectangle?: Rectangle     // refers to area for which meteo data has already been retrieved

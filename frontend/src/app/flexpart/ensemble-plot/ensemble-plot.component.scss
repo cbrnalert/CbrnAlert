@@ -41,7 +41,8 @@
   .location-picker { width: 36px; height: 36px; line-height: 36px; flex-shrink: 0; }
   mat-form-field { width: 116px; }
   figure { margin: 0; }
-  img { display: block; width: 100%; height: auto; }
+  figure[hidden] { display: none; }
+  .static-chart { width: 100%; height: 300px; }
   .figure-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   a { color: #3f51b5; text-decoration: underline; }
   .error { color: #b00020; }
@@ -69,8 +70,7 @@
     max-height: none;
     &[hidden] { display: none; }
     figure { display: flex; flex-direction: column; flex: 1; min-height: 100px; }
-    .chart-image { position: relative; flex: 1; min-height: 0; }
-    img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+    .static-chart { flex: 1; min-height: 0; height: auto; }
     .figure-actions, .coordinate-controls { flex-shrink: 0; }
   }
 }
@@ -95,3 +95,5 @@
   .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
   .mat-form-field-subscript-wrapper { top: 100%; margin-top: 4px; }
 }
+
+.ensemble-panel .panel-body figure[hidden] { display: none; }

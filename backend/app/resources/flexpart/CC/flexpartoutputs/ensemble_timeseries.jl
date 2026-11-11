@@ -107,11 +107,32 @@ function collect_series(output_dir, layer, latitude, longitude, dimensions)
     (; times, statistics..., member_count=length(members), latitude=sampled_latitude, longitude=sampled_longitude)
 end
 
+layer_unit(layer) = occursin(r"spec\d+_mr", layer) ? "ng/m³" : occursin("D_spec", layer) ? "ng/m²" : "native units"
+
+"""Numeric data for interactive animation charts; no server-side rendering required."""
+function series_payload(result; layer, ensemble)
+    clean(values) = [isfinite(value) ? value : nothing for value in values]
+    payload = Dict{String, Any}(
+        "times" => [string(time) * "Z" for time in result.times],
+        "latitude" => result.latitude, "longitude" => result.longitude,
+        "unit" => layer_unit(layer), "ensemble" => ensemble)
+    if ensemble
+        payload["memberCount"] = result.member_count
+        payload["mean"] = clean(result.mean)
+        payload["median"] = clean(result.median)
+        payload["lower"] = clean(result.lower)
+        payload["upper"] = clean(result.upper)
+    else
+        payload["concentration"] = clean(result.concentration)
+    end
+    payload
+end
+
 const RENDER_LOCK = ReentrantLock()
 
 function render(path, result; layer, dimensions, ensemble=true)
     lock(RENDER_LOCK) do
-        unit = occursin(r"spec\d+_mr", layer) ? "ng/m³" : occursin("D_spec", layer) ? "ng/m²" : "native units"
+        unit = layer_unit(layer)
         x = Float64[]
         for time in result.times
             push!(x, Dates.datetime2unix(time))

@@ -1,3 +1,4 @@
+import { AnimationSeries } from './animation/animation-model';
 import { HttpClient } from '@angular/common/http';
 import { ApiConfiguration } from '../core/api/api-configuration';
 import { SliceResponseType } from './flexpart-plot-data';
@@ -288,6 +289,17 @@ export class FlexpartService {
         return of(questions);
       })
     );
+  }
+
+  getAnimationSeries(outputId: string, layer: string, latitude: number, longitude: number,
+    dimensions: {[key: string]: string | number}) {
+    return this.http.post<AnimationSeries>(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/timeseries`,
+      {latitude, longitude, dimensions}, {params: {layer, format: 'json'}});
+  }
+
+  getAnimationFrame(outputId: string, layer: string, dimensions: {[key: string]: string | number}) {
+    return this.http.post(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/slice`,
+      dimensions, {params: {layer, geojson: 'false', trim: 'false'}, responseType: 'blob'});
   }
 
   getEnsembleTimeSeries(outputId: string, layer: string, latitude: number, longitude: number,

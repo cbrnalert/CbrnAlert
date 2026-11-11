@@ -3,8 +3,12 @@
         <app-dyn-form [questions]="questions" [parentForm]="formGroup" formName="dimensions"></app-dyn-form>
         <button class="plot-button" mat-raised-button color="primary" type="submit" [disabled]="!formGroup.valid">Map plot</button>
         <button class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid"
-            (click)="ensembleVisible = !ensembleVisible">Time series plot</button>
+            (click)="animationVisible = false; ensembleVisible = !ensembleVisible">Time series plot</button>
+        <button class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid || !dims['Ti'] || dims['Ti'].length === 0"
+            (click)="ensembleVisible = false; animationVisible = !animationVisible">Animation</button>
     </form>
+    <app-flexpart-animation *ngIf="animationVisible" [outputId]="outputId" [layer]="layerName.value"
+        [dimensions]="formGroup.value.dimensions" [timesteps]="$any(dims['Ti'])" (closed)="animationVisible = false"></app-flexpart-animation>
     <app-ensemble-plot *ngIf="ensembleVisible" [isEnsemble]="isEnsemble" [outputId]="outputId" [layer]="layerName.value"
         [dimensions]="formGroup.value.dimensions" (closed)="ensembleVisible = false"></app-ensemble-plot>
 </ng-container>

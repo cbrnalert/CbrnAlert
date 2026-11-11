@@ -1,0 +1,29 @@
+<ng-template #animationDock>
+  <section class="animation-panel" aria-label="Map animation and synchronized time series">
+    <div class="animation-controls">
+      <button mat-icon-button type="button" (click)="step(-1)" [disabled]="!ready" aria-label="Previous timestep"><mat-icon>skip_previous</mat-icon></button>
+      <button mat-icon-button type="button" (click)="togglePlay()" [disabled]="!ready" [attr.aria-label]="playing ? 'Pause animation' : 'Play animation'"><mat-icon>{{playing ? 'pause' : 'play_arrow'}}</mat-icon></button>
+      <button mat-icon-button type="button" (click)="step(1)" [disabled]="!ready" aria-label="Next timestep"><mat-icon>skip_next</mat-icon></button>
+      <span class="timestep" aria-live="off">{{currentTime}} <span *ngIf="times.length">({{currentIndex + 1}}/{{times.length}})</span></span>
+      <span *ngIf="!ready && !error" role="status">Loading frames {{loadedFrames}}/{{times.length}}…</span>
+      <label class="speed">Frame interval <select #speed [value]="frameDuration" (change)="changeSpeed(speed.value)"><option value="500">0.5 s</option><option value="1000">1 s</option><option value="2000">2 s</option></select></label>
+      <button mat-icon-button type="button" (click)="closed.emit()" aria-label="Close animation"><mat-icon>close</mat-icon></button>
+    </div>
+    <form [formGroup]="coordinates" (ngSubmit)="loadSeries()" class="location-controls">
+      <button mat-icon-button type="button" (click)="pickOnMap()" [attr.aria-label]="picking ? 'Cancel location selection' : 'Pick time-series location on map'" [matTooltip]="picking ? 'Cancel selection' : 'Pick on map'"><mat-icon>{{picking ? 'close' : 'place'}}</mat-icon></button>
+      <label>Latitude <input type="number" formControlName="latitude" min="-90" max="90" step="any"></label>
+      <label>Longitude <input type="number" formControlName="longitude" min="-180" max="180" step="any"></label>
+      <button mat-raised-button color="primary" type="submit" [disabled]="coordinates.invalid || seriesLoading">{{seriesLoading ? 'Loading…' : 'Plot location'}}</button>
+      <span *ngIf="picking" role="status">Click the map to place the marker.</span>
+      <span *ngIf="!series && !seriesLoading && !picking && !seriesError">Select a location for the time series.</span>
+      <span *ngIf="series">Grid point: {{series.latitude | number:'1.3-5'}}, {{series.longitude | number:'1.3-5'}}</span>
+    </form>
+    <div *ngIf="error || seriesError" role="alert" class="animation-error">{{error || seriesError}}</div>
+    <div class="animation-chart" aria-label="Concentration time series with a red current-time cursor and adjustable time-range slider"></div>
+    <div class="animation-colorbar" [hidden]="!colorbar" aria-label="Animation concentration color scale">
+      <span class="colorbar-unit">{{unit}}</span><div class="colorbar-scale" *ngIf="colorbar as bar"><span class="color-strip"><i *ngFor="let color of (bar.colors || []).slice().reverse()" [style.background]="color"></i></span><span class="colorbar-ticks"><span *ngFor="let tick of bar.ticks.slice().reverse()">{{formatTick(tick)}}</span></span></div>
+    </div>
+    <span *ngFor="let edge of resizeEdges" class="resize-handle" [ngClass]="'resize-' + edge"
+      (pointerdown)="startResize($event, edge)" aria-hidden="true"></span>
+  </section>
+</ng-template>

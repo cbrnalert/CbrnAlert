@@ -18,6 +18,16 @@ After updating Julia dependencies, restart the backend to load the plotting endp
 julia --project=backend backend/test/ensemble_timeseries_test.jl
 ```
 
+## Map animation
+
+Select a FLEXPART run, output, variable and height, then click **Animation** next to **Time series plot**. The player loads the available output times and loops through them with a timestep indicator, pause/play, previous/next and speed controls. Frames share one concentration color scale; zero-concentration frames remain in the sequence.
+
+A centered time-series panel sits inside the bottom of the map; drag any edge or corner to resize it. Enter coordinates or use its location icon to pick a draggable point on the map. The red vertical line follows the timestep currently displayed on the map. Ensemble charts show mean, median and P10–P90 spread; deterministic charts show concentration.
+
+Drag the handles on the time-span bar below the chart to restrict playback to part of the simulation, or drag both handles back to the ends to restore the entire sequence. The selected interval loops continuously. Closing animation cancels pending requests and restores the previous map layers and view.
+
+Animation uses numeric time-series responses (`format=json`) and full-grid TIFF frames (`trim=false`). Restart the backend after updating these endpoints. Plotly is loaded on demand when animation opens.
+
 # Installation
 This section covers setting up the app for development and production. We provide two methods:
 

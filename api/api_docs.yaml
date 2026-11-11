@@ -1070,6 +1070,12 @@ paths:
             default: false
           description: If true, data for legend is provided
 
+        - in: query
+          name: trim
+          schema:
+            type: boolean
+            default: true
+          description: Set false to preserve the full grid, including all-zero frames, for animation.
         - $ref: '#/components/parameters/outputIdParam'
       requestBody:
         required: true
@@ -1148,6 +1154,13 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [svg, json]
+            default: svg
+          description: SVG figure or numeric data for synchronized animation charts.
       requestBody:
         required: true
         content:
@@ -1179,6 +1192,51 @@ paths:
               schema:
                 type: string
                 format: binary
+            application/json:
+              schema:
+                type: object
+                required: [times, latitude, longitude, unit, ensemble]
+                properties:
+                  times:
+                    type: array
+                    items:
+                      type: string
+                      format: date-time
+                  latitude:
+                    type: number
+                  longitude:
+                    type: number
+                  unit:
+                    type: string
+                  ensemble:
+                    type: boolean
+                  memberCount:
+                    type: integer
+                  mean:
+                    type: array
+                    items:
+                      type: number
+                      nullable: true
+                  median:
+                    type: array
+                    items:
+                      type: number
+                      nullable: true
+                  lower:
+                    type: array
+                    items:
+                      type: number
+                      nullable: true
+                  upper:
+                    type: array
+                    items:
+                      type: number
+                      nullable: true
+                  concentration:
+                    type: array
+                    items:
+                      type: number
+                      nullable: true
         '400':
           description: Invalid coordinates, dimensions or unavailable simulation outputs
         '404':

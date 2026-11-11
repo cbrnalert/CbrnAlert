@@ -120,15 +120,15 @@ function get_slice()
         end
         result |> json
     else
-        _respond_tiff(viewed)
+        _respond_tiff(viewed; trim=Genie.Router.params(:trim, "true") != "false")
         # viewed |> read |> json
     end
 end
 
-function _respond_tiff(raster)
+function _respond_tiff(raster; trim=true)
     filename = string(UUIDs.uuid4()) * ".tiff"
     tmpfile = joinpath(TMP_DIR_PATH, filename)
-    trimmed = Rasters.trim(replace(raster, 0. => nothing))
+    trimmed = trim ? Rasters.trim(replace(raster, 0. => nothing)) : raster
     try
         filename = Rasters.write(tmpfile, replace(trimmed, nothing => 0.); options= Dict("COMPRESS"=>"DEFLATE"))
         Genie.Router.serve_file(filename)
@@ -240,6 +240,8 @@ function get_ensemble_timeseries()
     end
     run = related(output, FlexpartRun)[]
     layer = Genie.Router.params(:layer)
+    format = Genie.Router.params(:format, "svg")
+    format in ("svg", "json") || return HTTP.Response(400, "Unsupported time-series format.")
     tmpfile = joinpath(TMP_DIR_PATH, string(uuid4()) * ".svg")
     started = time()
     @info "Ensemble time series: reading members" output_id=Genie.Router.params(:outputId) latitude longitude
@@ -248,6 +250,9 @@ function get_ensemble_timeseries()
             EnsembleTimeSeries.collect_series(joinpath(run.path, "output"), layer, latitude, longitude, dimensions)
         else
             EnsembleTimeSeries.collect_deterministic(output.path, layer, latitude, longitude, dimensions)
+        end
+        if format == "json"
+            return EnsembleTimeSeries.series_payload(result; layer, ensemble=run.ensemble) |> json
         end
         @info "Ensemble time series: rendering" elapsed_seconds=round(time() - started; digits=2) ensemble=run.ensemble
         EnsembleTimeSeries.render(tmpfile, result; layer, dimensions, ensemble=run.ensemble)

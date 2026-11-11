@@ -8,6 +8,8 @@ import { LeafletMouseEvent, Marker, marker } from 'leaflet';
 import type {} from '@geoman-io/leaflet-geoman-free';
 import { FlexpartService } from '../flexpart.service';
 import { MapService } from 'src/app/core/services/map.service';
+import { AnimationSeries } from '../animation/animation-model';
+import type { Data, Layout } from 'plotly.js';
 
 @Component({
   selector: 'app-ensemble-plot',
@@ -36,7 +38,12 @@ export class EnsemblePlotComponent implements OnChanges, AfterViewInit, OnDestro
   loading = false;
   picking = false;
   error = '';
-  figureUrl: string | null = null;
+  series: AnimationSeries | null = null;
+  private chart?: HTMLElement;
+  private plotly?: typeof import('plotly.js');
+  private chartObserver?: ResizeObserver;
+  private renderToken = 0;
+  private destroyed = false;
   private request?: Subscription;
   private locationMarker?: Marker;
   private coordinateChanges = this.coordinates.valueChanges.subscribe(() => this.clearFigure());
@@ -57,6 +64,11 @@ export class EnsemblePlotComponent implements OnChanges, AfterViewInit, OnDestro
       hasBackdrop: false
     });
     this.overlayRef.attach(new TemplatePortal(this.floatingPanel, this.viewContainer));
+    this.chart = this.overlayRef.overlayElement.querySelector('.static-chart') as HTMLElement;
+    this.chartObserver = new ResizeObserver(() => {
+      if (this.chart && this.plotly && this.series && !this.minimized) void this.plotly.Plots.resize(this.chart);
+    });
+    this.chartObserver.observe(this.overlayRef.overlayElement);
   }
 
   toggleExpanded(drag: CdkDrag): void {
@@ -124,8 +136,8 @@ export class EnsemblePlotComponent implements OnChanges, AfterViewInit, OnDestro
     this.request?.unsubscribe();
     this.loading = false;
     this.error = '';
-    if (this.figureUrl) URL.revokeObjectURL(this.figureUrl);
-    this.figureUrl = null;
+    this.renderToken++;
+    this.series = null;
     this.cdr.markForCheck();
   }
 
@@ -187,12 +199,19 @@ export class EnsemblePlotComponent implements OnChanges, AfterViewInit, OnDestro
     delete dimensions['Ti'];
     if ('height' in dimensions) dimensions['height'] = Number(dimensions['height']);
     this.loading = true;
-    this.request = this.flexpart.getEnsembleTimeSeries(this.outputId, this.layer, latitude, longitude, dimensions).pipe(timeout(90000)).subscribe({
-      next: figure => {
-        this.figureUrl = URL.createObjectURL(figure);
+    this.request = this.flexpart.getAnimationSeries(this.outputId, this.layer, latitude, longitude, dimensions).pipe(timeout(90000)).subscribe({
+      next: series => {
+        this.series = series;
         this.loading = false;
         this.editingLocation = false;
         this.cdr.markForCheck();
+        const token = ++this.renderToken;
+        void this.renderChart(series, token).catch(() => {
+          if (this.destroyed || token !== this.renderToken) return;
+          this.error = 'Unable to display the time series. Try plotting again.';
+          this.series = null;
+          this.cdr.markForCheck();
+        });
       },
       error: (error: unknown) => {
         this.loading = false;
@@ -206,7 +225,38 @@ export class EnsemblePlotComponent implements OnChanges, AfterViewInit, OnDestro
     });
   }
 
+  private async renderChart(series: AnimationSeries, token: number): Promise<void> {
+    const module = await import('plotly.js-basic-dist-min');
+    if (this.destroyed || token !== this.renderToken || !this.chart) return;
+    this.plotly = module.default || module;
+    this.cdr.detectChanges();
+    const x = series.times;
+    const traces: Data[] = series.ensemble ? [
+      {x, y: series.lower, type: 'scatter', mode: 'lines', line: {width: 0}, showlegend: false, hoverinfo: 'skip'},
+      {x, y: series.upper, type: 'scatter', mode: 'lines', fill: 'tonexty', fillcolor: 'rgba(70,130,180,0.25)', line: {width: 0}, name: 'P10–P90 spread', legendrank: 3},
+      {x, y: series.mean, type: 'scatter', mode: 'lines', line: {color: 'royalblue', width: 2}, name: 'Mean', legendrank: 1},
+      {x, y: series.median, type: 'scatter', mode: 'lines', line: {color: 'navy', width: 2}, name: 'Median', legendrank: 2}
+    ] : [{x, y: series.concentration, type: 'scatter', mode: 'lines', line: {color: 'navy', width: 2}, name: 'Concentration'}];
+    const layout: Partial<Layout> = {
+      autosize: true, margin: {l: 65, r: 20, t: 40, b: 55},
+      title: {text: `${this.layer}<br><sup>Grid point: ${series.latitude.toFixed(3)}°, ${series.longitude.toFixed(3)}°${this.dimensions['height'] !== undefined ? ' · Height: ' + this.dimensions['height'] + ' m' : ''}</sup>`, font: {size: 12}},
+      font: {size: 11}, hovermode: 'x unified',
+      xaxis: {type: 'date', title: {text: 'Time (UTC)'}, gridcolor: '#ddd', griddash: 'dash'},
+      yaxis: {title: {text: `Concentration (${series.unit})`}, rangemode: 'tozero', gridcolor: '#ddd', griddash: 'dash'},
+      legend: {orientation: 'v', traceorder: 'normal', x: 0.98, xanchor: 'right', y: 0.98, yanchor: 'top', bgcolor: 'rgba(255,255,255,0.9)', title: series.ensemble ? {text: `Ensemble count = ${series.memberCount}`} : undefined}
+    };
+    await this.plotly.react(this.chart, traces, layout, {responsive: true, displayModeBar: false});
+  }
+
+  downloadSvg(): void {
+    if (this.plotly && this.chart && this.series) void this.plotly.downloadImage(this.chart, {format: 'svg', filename: 'time-series', width: this.chart.clientWidth, height: this.chart.clientHeight});
+  }
+
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.renderToken++;
+    this.chartObserver?.disconnect();
+    if (this.plotly && this.chart) this.plotly.purge(this.chart);
     this.stopResize();
     this.overlayRef?.dispose();
     this.clearFigure();

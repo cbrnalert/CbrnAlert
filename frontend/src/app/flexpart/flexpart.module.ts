@@ -1,3 +1,4 @@
+import { AnimationComponent } from './animation/animation.component';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -37,6 +38,7 @@ import { DialogModule } from 'src/app/shared/ui/dialogs/dialog.module';
 
 @NgModule({
     declarations: [
+        AnimationComponent,
         EnsemblePlotComponent,
         FlexpartPlotComponent,
         OutputsComponent,
