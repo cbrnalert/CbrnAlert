@@ -3,3 +3,10 @@
   min-width: 144px;
   height: 36px;
 }
+
+.plot-button.mat-raised-button.mat-primary, .plot-button.mat-mdc-raised-button.mat-primary {
+  background-color: #4353b8;
+  color: white;
+  --mdc-protected-button-container-color: #4353b8;
+  --mdc-protected-button-label-text-color: white;
+}

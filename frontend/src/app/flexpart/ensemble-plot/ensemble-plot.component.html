@@ -23,7 +23,7 @@
       </div>
     </header>
     <div class="panel-body" [hidden]="minimized">
-      <form *ngIf="!figureUrl || editingLocation" [formGroup]="coordinates" (ngSubmit)="plot()" class="coordinate-controls">
+      <form *ngIf="!series || editingLocation" [formGroup]="coordinates" (ngSubmit)="plot()" class="coordinate-controls">
         <button class="location-picker" mat-icon-button type="button" (click)="pickOnMap()" [disabled]="!mapService.leafletMap"
             [attr.aria-label]="picking ? 'Cancel map selection' : 'Pick location on map'"
             [matTooltip]="picking ? 'Cancel map selection' : 'Pick on map'">
@@ -50,15 +50,13 @@
         <button mat-button type="button" (click)="cancelPlot()">Cancel</button>
       </div>
       <p *ngIf="error" role="alert" class="error">{{ error }}</p>
-      <figure *ngIf="figureUrl">
-        <div class="chart-image">
-          <img [src]="figureUrl" [alt]="isEnsemble ? 'Ensemble concentration time series with mean and median lines and shaded P10–P90 spread' : 'Concentration time series'">
-        </div>
+      <figure [hidden]="!series">
+        <div class="static-chart" [attr.aria-label]="isEnsemble ? 'Ensemble concentration time series' : 'Concentration time series'"></div>
         <div class="figure-actions">
           <button mat-button type="button" (click)="editingLocation = !editingLocation">
             {{ editingLocation ? 'Hide coordinates' : 'Change location' }}
           </button>
-          <a [href]="figureUrl" download="time-series.svg">Download SVG</a>
+          <button mat-button type="button" (click)="downloadSvg()">Download SVG</button>
         </div>
       </figure>
     </div>

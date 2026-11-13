@@ -5,6 +5,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { CommonModule } from '@angular/common';
 import { By } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
+import { AnimationSeries } from '../animation/animation-model';
 import { EnsemblePlotComponent } from './ensemble-plot.component';
 import { FlexpartService } from '../flexpart.service';
 import { MapService } from 'src/app/core/services/map.service';
@@ -23,33 +24,32 @@ class TestRoot {}
 
 describe('Ensemble plot beneath an OnPush plot window', () => {
   let fixture: ComponentFixture<TestRoot>;
-  let response: Subject<Blob>;
+  let response: Subject<AnimationSeries>;
   let overlayElement: HTMLElement;
 
   beforeEach(async () => {
-    response = new Subject<Blob>();
+    response = new Subject<AnimationSeries>();
     await TestBed.configureTestingModule({
       declarations: [TestRoot, OnPushPlotWindow, EnsemblePlotComponent],
       imports: [CommonModule, OverlayModule],
       providers: [
-        { provide: FlexpartService, useValue: { getEnsembleTimeSeries: () => response } },
+        { provide: FlexpartService, useValue: { getAnimationSeries: () => response } },
         { provide: MapService, useValue: {} }
       ]
     }).overrideComponent(EnsemblePlotComponent, {
       set: {
         template: `<ng-template #floatingPanel><button (click)="plot()">Plot</button>
           <span class="state">{{loading ? 'Generating' : error}}</span>
-          <img *ngIf="figureUrl" [src]="figureUrl"></ng-template>`,
+          <span *ngIf="series" class="chart-ready">Chart ready</span></ng-template>`,
         styles: [],
         styleUrls: []
       }
     }).compileComponents();
-    spyOn(URL, 'createObjectURL').and.returnValue('blob:test-figure');
-    spyOn(URL, 'revokeObjectURL');
     fixture = TestBed.createComponent(TestRoot);
     fixture.detectChanges();
     overlayElement = TestBed.inject(OverlayContainer).getContainerElement();
     const panel = fixture.debugElement.query(By.directive(EnsemblePlotComponent)).componentInstance as EnsemblePlotComponent;
+    spyOn<any>(panel, 'renderChart').and.resolveTo();
     panel.coordinates.setValue({ latitude: 45.645, longitude: 7.705 });
     overlayElement.querySelector('button')!.click();
     fixture.detectChanges();
@@ -90,12 +90,12 @@ describe('Ensemble plot beneath an OnPush plot window', () => {
     element.remove();
   });
 
-  it('replaces the loading message with the image when the HTTP response arrives', () => {
-    response.next(new Blob(['<svg/>'], { type: 'image/svg+xml' }));
+  it('replaces the loading message with the chart when the HTTP response arrives', () => {
+    response.next({times: ['2026-01-10T01:00:00Z'], latitude: 45.645, longitude: 7.705, unit: 'ng/m³', ensemble: false, concentration: [1]});
     response.complete();
     fixture.detectChanges();
     expect(overlayElement.querySelector('.state')!.textContent).not.toContain('Generating');
-    expect(overlayElement.querySelector('img')!.getAttribute('src')).toBe('blob:test-figure');
+    expect(overlayElement.querySelector('.chart-ready')!.textContent).toBe('Chart ready');
   });
 
   it('shows asynchronous errors instead of leaving the loading message visible', () => {

@@ -1,5 +1,7 @@
 import { MapAction } from 'src/app/core/state/map.state';
-import { Component, OnInit, ChangeDetectionStrategy, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, Input } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { circle, Control, Popup, ControlOptions, LeafletMouseEvent, DomUtil, DomEvent, Icon, icon, latLng, latLngBounds, Layer, Map as LeafletMap, marker, Marker, polygon, Rectangle, tileLayer, LayerGroup, FeatureGroup, TileLayer, LatLngBounds, control } from 'leaflet';
 import { dynamicMapLayer, imageMapLayer, ImageMapLayer } from 'esri-leaflet';
 import '@geoman-io/leaflet-geoman-free';
@@ -38,7 +40,18 @@ interface ThresholdControlOptions extends ControlOptions {
   templateUrl: './leaflet-map.component.html',
   styleUrls: ['./leaflet-map.component.scss'],
 })
-export class LeafletMapComponent implements OnInit {
+export class LeafletMapComponent implements OnInit, OnDestroy {
+
+  private routeChanges?: Subscription;
+  private updateDrawingControls(): void {
+    if (!this.map) return;
+    if (this.router.url.includes('/flexpart/plots')) {
+      this.map.pm.disableDraw();
+      this.map.pm.removeControls();
+    } else this.map.pm.addControls();
+  }
+
+  ngOnDestroy(): void { this.routeChanges?.unsubscribe(); }
 
   map: LeafletMap;
   layer: FeatureGroup | TileLayer;
@@ -85,11 +98,15 @@ export class LeafletMapComponent implements OnInit {
     public mapService: MapService,
     public mapPlotsService: MapPlotsService,
     public flexpartService: FlexpartService,
-    public store: Store
+    public store: Store,
+    private router: Router
   ) {
   }
 
   ngOnInit(): void {
+    this.routeChanges = this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) this.updateDrawingControls();
+    });
     this.activePlot$.subscribe(plot => {
       if (!this.map || !plot) return;
       if (plot.type === 'flexpart' && plot.id > this.latestFlexpartPlotId) {
@@ -208,6 +225,7 @@ export class LeafletMapComponent implements OnInit {
       rotateMode: false,
       editMode: false,
     });
+    this.updateDrawingControls();
     map.pm.enableDraw('Marker', { continueDrawing: false });
     map.pm.disableDraw();
     map.pm.setGlobalOptions({
@@ -395,6 +413,7 @@ export class LeafletMapComponent implements OnInit {
   }
 
   private onRightClick = (plot: MapPlot) => async (e: LeafletMouseEvent) => {
+    if (this.mapService.animationActive) return;
     const { lat, lng } = e.latlng;
     const georaster = plot.data;
     const column = Math.floor((lng - georaster.xmin) / georaster.pixelWidth);
