@@ -1,3 +1,4 @@
+import { agreementReadout } from './agreement-readout';
 import { MapAction } from 'src/app/core/state/map.state';
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, Input } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
@@ -30,11 +31,6 @@ const iconDefault = icon({
 });
 Marker.prototype.options.icon = iconDefault;
 
-interface ThresholdControlOptions extends ControlOptions {
-  collapsed?: boolean;
-  checkboxState?: { [label: string]: boolean };
-}
-
 @Component({
   selector: 'app-leaflet-map',
   templateUrl: './leaflet-map.component.html',
@@ -59,10 +55,7 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
   sameRender: boolean = false;
   popDensityLayer100m: ImageMapLayer;
   popDensityLayer1km: ImageMapLayer;
-  currentThresholdCtrl: Control | null = null;
-  thresholdControlList = new Map<string, { control: Control, collapsed: boolean, threshold: number | null, plotUnit: string, checkboxState: { [label: string]: boolean }, members?: string, ready?: boolean, hiddenConcentrationIds?: number[] }>();
   currentUnit: string | null;
-  private latestFlexpartPlotId = -1;
 
   options = {
     attributionControl: false, // Disable the default attribution control
@@ -109,49 +102,9 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
     });
     this.activePlot$.subscribe(plot => {
       if (!this.map || !plot) return;
-      if (plot.type === 'flexpart' && plot.id > this.latestFlexpartPlotId) {
-        this.latestFlexpartPlotId = plot.id;
-        this.thresholdControlList.forEach(stored => {
-          stored.checkboxState = {};
-          stored.members = '';
-          stored.hiddenConcentrationIds = [];
-        });
-      }
       this.map.closePopup();
       this.map.off('contextmenu');
       this.currentUnit = null;
-      if (this.currentThresholdCtrl) {
-        this.map.removeControl(this.currentThresholdCtrl);
-        this.currentThresholdCtrl = null;
-      }
-      if (plot.type == 'stats') {
-        const mainPlot = plot.name.split(' - ')[0];
-        const stored = this.thresholdControlList.get(mainPlot);
-        if (stored) {
-          this.currentThresholdCtrl = stored.control;
-          this.currentThresholdCtrl.addTo(this.map);
-          this.currentUnit = stored.plotUnit;
-        }
-      }
-      if (plot.type == 'flexpart') {
-        if (plot.simType == 'ensemble') {
-          const stored = this.thresholdControlList.get(plot.name);
-          if (stored) {
-            this.currentThresholdCtrl = stored.control;
-            this.currentThresholdCtrl.addTo(this.map);
-          } else {
-            this.currentThresholdCtrl = this.createThresholdControl(plot);
-            this.thresholdControlList.set(plot.name, {
-              control: this.currentThresholdCtrl,
-              collapsed: true,
-              threshold: null,
-              plotUnit: '',
-              checkboxState: {}
-            });
-            this.currentThresholdCtrl.addTo(this.map);
-          }
-        }
-      }
       if (plot.type == 'flexpart' || plot.legendLayer == "percentage agreement") {
         if (!this.currentUnit) {
           this.currentUnit = (/spec\d+_mr/.test(plot.legendLayer)) ? 'ng/m³' : (/D_spec/.test(plot.legendLayer)) ? 'ng/m²' : null;
@@ -191,6 +144,10 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
       const coordsDiv = document.querySelector('.leaflet-coords-control') as HTMLDivElement;
       if (coordsDiv) {
         coordsDiv.innerText = `Lat: ${e.latlng.lat.toFixed(5)}, Lon: ${e.latlng.lng.toFixed(5)}`;
+        if (!this.mapService.animationActive) {
+          const agreement = this.store.selectSnapshot(MapPlotState.mapPlots).find(plot => plot.visible && plot.legendLayer === 'percentage agreement');
+          if (agreement) coordsDiv.innerText += '\n' + agreementReadout(agreement, e.latlng.lng, e.latlng.lat);
+        }
       }
     });
     map.on('mouseout', (e: LeafletMouseEvent) => {
@@ -438,187 +395,5 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
       }
     }
   };
-
-  private createThresholdControl(plot: MapPlot, options: ThresholdControlOptions = {}): Control {
-    const ThresholdControl = Control.extend({
-      options: {
-        collapsed: true,
-        checkboxState: {}
-      },
-
-      onAdd: (map: LeafletMap) => {
-        const storedCtrl = this.thresholdControlList.get(plot.name);
-        const container = DomUtil.create('div', 'threshold-control');
-        if (storedCtrl) {
-          if (/spec\d+_mr/.test(plot.legendLayer)) {
-            storedCtrl.plotUnit = 'ng/m³';
-          } else if (/D_spec/.test(plot.legendLayer)) {
-            storedCtrl.plotUnit = 'ng/m²';
-          }
-        }
-
-        // Input field
-        const inputWrapper = DomUtil.create('div', 'threshold-input-wrapper', container);
-        const label = DomUtil.create('label', 'threshold-label', inputWrapper);
-        label.innerText = 'Threshold value:';
-        const input = DomUtil.create('input', 'threshold-input', inputWrapper) as HTMLInputElement;
-        input.type = 'text';
-        input.inputMode = 'decimal';
-        if (storedCtrl && storedCtrl.threshold) {
-          input.value = storedCtrl.threshold.toString();
-        }
-
-        // "Calculate statistics" button
-        const calculateBtn = DomUtil.create('button', 'calculate-btn', container) as HTMLButtonElement;
-        const statusWrapper = DomUtil.create('div', 'status-wrapper', container);
-        calculateBtn.innerText = 'Calculate statistics';
-        calculateBtn.disabled = true;
-
-        // Toggle statistics plots button
-        const optionsWrapper = DomUtil.create('div', '', container);
-        const toggleBtn = DomUtil.create('button', 'toggle-checkboxes-btn', container) as HTMLButtonElement;
-        let isVisible: boolean;
-        if (storedCtrl) {
-          optionsWrapper.style.display = storedCtrl.collapsed ? 'none' : 'block';
-          toggleBtn.innerText = storedCtrl.collapsed ? '▼ Show results' : '▲ Hide results';
-          isVisible = storedCtrl.collapsed ? false : true;
-        }
-        toggleBtn.addEventListener('click', () => {
-          isVisible = !isVisible;
-          if (storedCtrl) {
-            storedCtrl.collapsed = !isVisible;
-          }
-          optionsWrapper.style.display = isVisible ? 'block' : 'none';
-          toggleBtn.innerText = isVisible ? '▲ Hide results' : '▼ Show results';
-        });
-
-        // Logic behind "Calculate statistics" button
-        input.addEventListener('input', () => {
-          const value = Number(input.value);
-          const valid = Number.isFinite(value) && value > 0;
-          calculateBtn.disabled = !valid;
-
-        });
-        input.addEventListener('keydown', (event: KeyboardEvent) => {
-          if (event.key === 'Enter' && !calculateBtn.disabled) {
-            calculateBtn.click();
-          }
-        });
-        const agreementLabel = DomUtil.create('label', 'checkbox-wrapper', optionsWrapper);
-        const agreement = DomUtil.create('input', '', agreementLabel) as HTMLInputElement;
-        agreement.type = 'checkbox';
-        agreement.checked = !!storedCtrl?.checkboxState['percentage agreement'];
-        agreementLabel.appendChild(document.createTextNode('Percentage agreement'));
-        const memberLabel = DomUtil.create('label', 'member-label', optionsWrapper);
-        memberLabel.innerText = 'Member numbers:';
-        const members = DomUtil.create('input', 'member-input', memberLabel) as HTMLInputElement;
-        members.type = 'text';
-        members.placeholder = 'e.g. 1, 12, 50 or all';
-        members.value = storedCtrl?.members || '';
-        const memberStatus = DomUtil.create('div', 'member-status', optionsWrapper);
-        memberStatus.setAttribute('role', 'status');
-        const updateVisibility = (labels: string[], visible: boolean) => {
-          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
-          const actions = plots.filter(p => labels.some(label =>
-            p.name === `${plot.name} - ${label} (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`
-          )).map(p => visible ? new MapPlotAction.Show(p.id) : new MapPlotAction.Hide(p.id));
-          if (actions.length) this.store.dispatch(actions);
-        };
-        const toggleConcentration = (showAgreement: boolean) => {
-          if (!storedCtrl) return;
-          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
-          if (showAgreement) {
-            storedCtrl.hiddenConcentrationIds = plots.filter(p => p.type === 'flexpart' && p.visible).map(p => p.id);
-            const actions = storedCtrl.hiddenConcentrationIds.map(id => new MapPlotAction.Hide(id));
-            if (actions.length) this.store.dispatch(actions);
-          } else {
-            const actions = (storedCtrl.hiddenConcentrationIds || []).map(id => new MapPlotAction.Show(id));
-            storedCtrl.hiddenConcentrationIds = [];
-            if (actions.length) this.store.dispatch(actions);
-          }
-        };
-        agreement.addEventListener('change', () => {
-          if (storedCtrl) storedCtrl.checkboxState['percentage agreement'] = agreement.checked;
-          toggleConcentration(agreement.checked);
-          updateVisibility(['percentage agreement'], agreement.checked);
-        });
-        members.addEventListener('input', () => {
-          const value = members.value.trim();
-          const allMembers = value.toLowerCase() === 'all';
-          const tokens = value ? value.split(',').map(token => token.trim()) : [];
-          const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
-          const available = plots.filter(p => p.type === 'stats' && /^member \d+$/.test(p.legendLayer) &&
-            p.name === `${plot.name} - ${p.legendLayer} (${storedCtrl?.threshold} ${storedCtrl?.plotUnit})`
-          ).map(p => Number(p.legendLayer.slice('member '.length)));
-          const selected = allMembers ? [...new Set(available)] : [...new Set(tokens.map(Number))];
-          const valid = allMembers || (tokens.every(token => /^\d+$/.test(token)) &&
-            selected.every(number => available.includes(number)));
-          const error = 'Enter member numbers separated by commas, or all.';
-          members.setCustomValidity(valid ? '' : error);
-          memberStatus.innerText = valid ? '' : error;
-          if (!valid || !storedCtrl) return;
-          storedCtrl.members = members.value;
-          const previous = Object.keys(storedCtrl.checkboxState).filter(label => label.startsWith('member '));
-          const next = selected.map(number => `member ${number}`);
-          updateVisibility(previous.filter(label => !next.includes(label)), false);
-          updateVisibility(next, true);
-          previous.forEach(label => delete storedCtrl.checkboxState[label]);
-          next.forEach(label => storedCtrl.checkboxState[label] = true);
-        });
-        agreement.disabled = members.disabled = !storedCtrl?.ready;
-        calculateBtn.addEventListener('click', () => {
-          const threshold = Number(input.value);
-          input.disabled = true;
-          calculateBtn.disabled = true;
-          agreement.disabled = members.disabled = true;
-          toggleConcentration(false);
-          updateVisibility(Object.keys(storedCtrl?.checkboxState || {}), false);
-          agreement.checked = false;
-          members.value = '';
-          memberStatus.innerText = '';
-          if (storedCtrl) {
-            storedCtrl.checkboxState = {};
-            storedCtrl.members = '';
-            storedCtrl.ready = false;
-            storedCtrl.threshold = threshold;
-          }
-          statusWrapper.innerHTML = '<div class="spinner"></div>';
-          const dimsIndices: { [key: string]: number } = {};
-          ['Ti', 'height'].forEach(key => {
-            const entry = plot.selectedParams![key];
-            if (entry) dimsIndices[key] = entry.index;
-          });
-          const failed = () => {
-            statusWrapper.innerText = 'Unable to calculate statistics. Please try again.';
-            input.disabled = false;
-            calculateBtn.disabled = false;
-          };
-          this.flexpartService.getEnsembleStats(plot.fpOutputId!, plot.legendLayer, dimsIndices, threshold).subscribe({
-            next: result => {
-              this.store.dispatch(new MapPlotAction.AddStatsTiff(result, 'stats',
-                [`percentage agreement (${threshold} ${storedCtrl?.plotUnit})`], plot.selectedParams!, plot.name)).subscribe({
-                complete: () => {
-                  statusWrapper.innerText = 'Done!';
-                  input.disabled = false;
-                  if (storedCtrl) storedCtrl.ready = true;
-                  agreement.disabled = members.disabled = false;
-                },
-                error: failed
-              });
-            },
-            error: failed
-          });
-        });
-
-        DomEvent.disableClickPropagation(container);
-        DomEvent.disableScrollPropagation(container);
-        return container;
-      },
-
-      onRemove: () => {}
-    });
-
-    return new ThresholdControl({position: 'topright'});
-  }
 
 }

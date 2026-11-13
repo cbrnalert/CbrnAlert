@@ -27,6 +27,7 @@ export class DimensionsFormComponent implements OnChanges {
   isLoading = true;
   ensembleVisible = false;
   animationVisible = false;
+  analysisVisible = false;
   get isEnsemble(): boolean {
     return !!this.flexpartService.runsSubject.value.find(run => run.uuid === this.runId)?.ensemble;
   }
@@ -47,6 +48,7 @@ export class DimensionsFormComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     this.ensembleVisible = false;
     this.animationVisible = false;
+    this.analysisVisible = false;
     const newOutId = changes["outputId"] ? changes["outputId"].currentValue : this.outputId;
     let newLayer: string | undefined;
     if (changes["layerName"] && changes["layerName"].currentValue) {
@@ -74,6 +76,7 @@ export class DimensionsFormComponent implements OnChanges {
 
   onSubmit() {
     this.animationVisible = false;
+    this.analysisVisible = false;
     const outputId = this.outputId;
     const layerName = this.layerName.value;
     const toGeoJSON = this.responseFormat == SliceResponseType.GEOJSON

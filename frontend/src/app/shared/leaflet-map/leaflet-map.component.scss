@@ -11,86 +11,6 @@
   font-size: 12px;
 }
 
-::ng-deep .threshold-control {
-  padding: 0.5vw;
-  background-color: white;
-  border-radius: 0.1vw;
-  box-shadow: 0 0 0 0.1vw rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5vw;
-  font-size: 12px;
-  line-height: 1.5;
-  max-width: 300px;
-
-  label, input, button, .status-wrapper, .member-status {
-    font-size: inherit;
-    line-height: inherit;
-  }
-
-  .threshold-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.2vw;
-  
-    .threshold-input {
-      border: 0.05vw solid #ccc;
-      border-radius: 0.1vw;
-      padding: 0.1vw;
-      width: 3vw;
-    }
-  }
-
-  .calculate-btn {
-    background-color: #3f51b5;
-    color: white;
-    border: none;
-    border-radius: 0.2vw;
-    font-weight: 500;
-    padding: 0.3vw 0.3vw;
-    margin: 0.3vw;
-    cursor: pointer;
-  }
-
-  .calculate-btn:disabled {
-    background-color: rgba(0, 0, 0, 0.12);
-    color: rgba(0, 0, 0, 0.38);
-    cursor: default;
-    box-shadow: none;
-  }
-
-  .toggle-checkboxes-btn {
-    padding: 0.1vw 0.1vw;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-  }
-
-  .checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    margin-top: 0.3vw;
-  }
-
-  .status-wrapper {
-    display: flex;
-    justify-content: center;
-  }
-
-  .spinner {
-    width: 1vw;
-    height: 1vw;
-    border: 0.2vw solid #ccc;
-    border-top: 0.2vw solid #3f51b5;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-}
 .map-legends {
   position: absolute;
   bottom: calc(0.15 * var(--legendBoxSize));
@@ -99,10 +19,4 @@
   align-items: flex-end;
   gap: 8px;
   z-index: 1000;
-}
-
-::ng-deep .threshold-control {
-  .member-label { display: flex; flex-direction: column; margin-top: 8px; }
-  .member-input { border: 1px solid #ccc; padding: 4px; width: 100%; }
-  .member-status { color: #b00020; }
 }

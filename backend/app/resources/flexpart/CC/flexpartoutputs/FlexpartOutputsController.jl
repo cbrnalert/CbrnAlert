@@ -21,6 +21,7 @@ using Colors
 using HTTP
 
 include("ensemble_timeseries.jl")
+include("ensemble_period_stats.jl")
 using .EnsembleTimeSeries
 
 using CbrnAlertApp.FlexpartRuns
@@ -207,6 +208,26 @@ function get_ensemble_stats()
     output_id = Genie.Router.params(:outputId)
     layername = Genie.Router.params(:layer)
     payload = jsonpayload()
+    scope = Genie.Router.params(:scope, "timestep")
+    scope in ("timestep", "period") || return HTTP.Response(400, "Invalid analysis scope.")
+    if scope == "period"
+        output = _output_by_uuid(output_id)
+        isnothing(output) && return HTTP.Response(404, "Output not found")
+        run = related(output, FlexpartRun)[]
+        run.ensemble || return HTTP.Response(400, "Ensemble output required.")
+        try
+            dimensions = get(payload, "dims", Dict())
+            result = EnsemblePeriodStats.calculate(joinpath(run.path, "output"), layername,
+                get(payload, "threshold", nothing), get(dimensions, "Ti", nothing), get(dimensions, "TiEnd", nothing), dimensions)
+            return result |> json
+        catch err
+            if err isa ArgumentError || err isa KeyError || err isa BoundsError
+                return HTTP.Response(400, "Invalid threshold, period, dimensions or ensemble grid.")
+            end
+            @error "Period exceedance calculation failed" exception=(err, catch_backtrace())
+            return HTTP.Response(500, "Unable to calculate period exceedance.")
+        end
+    end
     timestep = payload["dims"]["Ti"]
     height = haskey(payload["dims"], "height") ? payload["dims"]["height"] : nothing
     threshold = payload["threshold"]

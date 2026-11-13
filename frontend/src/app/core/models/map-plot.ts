@@ -1,3 +1,4 @@
+import { AgreementInfo } from './ensemble-agreement';
 import { FeatureCollection } from "geojson";
 
 export type PlotType = 'atp45' | 'flexpart' | 'stats';
@@ -26,6 +27,7 @@ export interface MapPlot {
   isActive: boolean,
   legendLayer: string,
   selectedParams?: ParameterEntry,
+  agreementInfo?: AgreementInfo,
   metadata?: Object
 }
 

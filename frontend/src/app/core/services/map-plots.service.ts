@@ -125,6 +125,7 @@ export class MapPlotsService {
       newPlot.legendLayer = plotName.split(' (')[0]; // remove the threshold value for legendLayer
       newPlot.name = newPlot.name + " - " + plotName;
       if (newPlot.legendLayer === "percentage agreement") {
+        newPlot.agreementInfo = {memberCount: geoRasterStats.values.length - 2, description: `At timestep ${selectedParams['Ti']?.value}`};
         newPlot.metadata = this._colorbarFromGeoRaster(geoRaster, type);
         newPlot.selectedParams = selectedParams;
       }
