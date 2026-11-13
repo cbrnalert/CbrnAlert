@@ -1104,7 +1104,7 @@ paths:
     post:
       tags:
         - Flexpart
-      description: 'Return ensemble statistics of the plotted `output`, based on layer, dimensions and input threshold value.'
+      description: Return ensemble threshold statistics. Timestep scope returns TIFF agreement/member contours. Period scope returns a full-domain JSON grid counting each member at most once where concentration is greater than or equal to threshold at any output time in the inclusive selected period. The ensemble mean is excluded.
       parameters:
         - $ref: '#/components/parameters/outputIdParam'
         - in: query
@@ -1113,6 +1113,13 @@ paths:
           schema:
             type: string
           description: Name of the plotted layer
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [timestep, period]
+            default: timestep
+          description: Analyze one timestep or any time in an inclusive period.
 
       requestBody:
         required: true
@@ -1128,15 +1135,47 @@ paths:
                   type: object
                   additionalProperties:
                     type: integer
-                  description: Indices of selected dimensions (time and height)
+                  description: One-based dimension indices. Ti is the first or single timestep, height is optional, and period scope additionally requires TiEnd (inclusive).
                 threshold:
                   type: number
                   description: Threshold value used to calculate stats (ensemble agreement and individual masks)
 
       responses:
         '200':
-          description: OK
+          description: TIFF for timestep scope, JSON for period scope. Unknown non-exceeding members with incomplete period data are excluded from the valid denominator.
           content:
+            application/json:
+              schema:
+                type: object
+                required: [values, counts, validCounts, memberCount, width, height, xmin, xmax, ymin, ymax, startTime, endTime]
+                properties:
+                  values:
+                    type: array
+                    description: Row-major percentages, north to south and west to east; null where no members can be classified.
+                    items:
+                      type: array
+                      items:
+                        type: number
+                        nullable: true
+                  counts:
+                    type: array
+                    items:
+                      type: array
+                      items: {type: integer}
+                  validCounts:
+                    type: array
+                    items:
+                      type: array
+                      items: {type: integer}
+                  memberCount: {type: integer}
+                  width: {type: integer}
+                  height: {type: integer}
+                  xmin: {type: number}
+                  xmax: {type: number}
+                  ymin: {type: number}
+                  ymax: {type: number}
+                  startTime: {type: string, format: date-time}
+                  endTime: {type: string, format: date-time}
             image/tiff:
               schema:
                 type: string

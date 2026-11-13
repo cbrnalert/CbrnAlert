@@ -18,6 +18,14 @@ After updating Julia dependencies, restart the backend to load the plotting endp
 julia --project=backend backend/test/ensemble_timeseries_test.jl
 ```
 
+## Ensemble analysis
+
+For ensemble runs, click **Ensemble analysis** in **Choose dimensions to plot**. The floating window uses the selected variable, timestep and height. Enter a positive threshold and choose **Calculate statistics**, then enable **Percentage agreement** or enter **Member numbers** such as `1, 2, 12` or `all`. Selected member threshold overlays appear together. Percentage agreement hides concentration and its colorbar while enabled and restores them when disabled. The window can be dragged, minimized and reopened; plotting a new map clears previous statistical overlays.
+
+Choose **Exceedance at any time** to analyze an inclusive start/end period (the full simulation by default). The percentage map counts each member once if concentration is **greater than or equal to** the threshold at any selected output time. The ensemble mean is excluded. Move the cursor over the map for percentage and member-count values, including zero exceedance, outside-domain and missing-data indicators. A member with incomplete data is classifiable if an exceedance is observed; otherwise it is excluded from the valid denominator. The readout shows the valid denominator and total count when they differ.
+
+Restart the Julia backend after updating the period statistics endpoint. Focused checks: `julia --project=backend backend/test/ensemble_period_stats_test.jl`.
+
 ## Map animation
 
 Select a FLEXPART run, output, variable and height, then click **Animation** next to **Time series plot**. The player loads the available output times and loops through them with a timestep indicator, pause/play, previous/next and speed controls. Frames share one concentration color scale; zero-concentration frames remain in the sequence.

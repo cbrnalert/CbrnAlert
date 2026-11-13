@@ -1,0 +1,47 @@
+:host { display: contents; }
+.analysis-panel { width: 360px; max-width: calc(100vw - 32px); max-height: calc(100vh - 110px); overflow: auto; background: white; color: #374151; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 20px #0003; font-size: 13px; }
+header { display: flex; align-items: center; padding: 2px 8px 2px 14px; background: #f3f4f6; cursor: move; }
+h3 { flex: 1; margin: 0; font-size: 14px; font-weight: 500; }
+header button { width: 32px; height: 36px; line-height: 36px; }
+.analysis-body { padding: 14px; }
+.analysis-body[hidden] { display: none; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+form, .results { display: flex; flex-direction: column; gap: 8px; }
+input[type=number], input[type=text] { border: 1px solid #bbb; border-radius: 4px; padding: 7px; width: 100%; box-sizing: border-box; }
+.results { margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; }
+.agreement { display: flex; align-items: center; gap: 6px; }
+.error { color: #b00020; }
+
+select { border: 1px solid #bbb; border-radius: 4px; padding: 7px; width: 100%; box-sizing: border-box; background: white; }
+.period-controls { display: flex; flex-direction: column; gap: 6px; }
+
+.analysis-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.information-button { display: inline-flex; justify-content: center; align-items: center; width: 19px; height: 19px; border: 1px solid #6b7280; border-radius: 50%; color: #6b7280; background: transparent; font: italic 600 13px Georgia, serif; cursor: pointer; }
+.information-button:focus-visible { outline: 2px solid #4353b8; outline-offset: 2px; }
+.analysis-information { padding: 8px 10px; margin-bottom: 8px; background: #f3f4f6; border-radius: 4px; font-size: 12px; }
+.analysis-information[hidden] { display: none; }
+.formula { overflow-x: auto; padding: 8px 0; font-family: Georgia, serif; white-space: nowrap; }
+.formula sub { font-size: 9px; }
+.fraction { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; }
+.fraction > span:first-child { border-bottom: 1px solid currentColor; padding-bottom: 3px; }
+.fraction > span:last-child { padding-top: 3px; }
+.variable-summary { line-height: 1.6; }
+.cursor-hint { color: #808792; font-size: 12px; }
+.period-labels { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.period-labels > span { display: flex; flex-direction: column; }
+.period-labels > span:last-child { text-align: right; }
+.period-caption { color: #6b7280; margin-bottom: 2px; }
+.period-slider { position: relative; height: 30px; margin: 0 9px 4px; }
+.period-track, .period-selection { position: absolute; top: 13px; height: 4px; border-radius: 2px; }
+.period-track { left: 0; right: 0; background: #d1d5db; }
+.period-selection { background: #4353b8; }
+.period-slider input[type=range] { position: absolute; inset: 0 -9px; margin: 0; width: calc(100% + 18px); height: 30px; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; }
+.period-slider input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid white; border-radius: 50%; background: #4353b8; box-shadow: 0 0 2px #374151; pointer-events: auto; cursor: ew-resize; }
+.period-slider input::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid white; border-radius: 50%; background: #4353b8; box-shadow: 0 0 2px #374151; pointer-events: auto; cursor: ew-resize; }
+.period-slider input:focus-visible { outline: none; }
+.period-slider input:focus-visible::-webkit-slider-thumb { outline: 2px solid #4353b8; outline-offset: 2px; }
+.period-slider input:focus-visible::-moz-range-thumb { outline: 2px solid #4353b8; outline-offset: 2px; }
+.period-slider input:disabled::-webkit-slider-thumb { background: #9ca3af; cursor: default; }
+.period-slider input:disabled::-moz-range-thumb { background: #9ca3af; cursor: default; }
+
+#analysis-end { z-index: 2; }

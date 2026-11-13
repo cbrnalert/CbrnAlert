@@ -123,7 +123,6 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
     pane.style.zIndex = '450';
     this.observer = new ResizeObserver(() => {
       if (this.destroyed || !this.dock) return;
-      mapElement.style.setProperty('--animation-dock-height', `${this.dock.offsetHeight}px`);
       if (this.plotly && this.chartInitialized && this.chart) void this.plotly.Plots.resize(this.chart);
     });
     this.observer.observe(this.dock);
@@ -470,7 +469,6 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.legend?.remove();
     const element = this.mapService.leafletMap?.getContainer();
     element?.classList.remove('animation-active');
-    element?.style.removeProperty('--animation-dock-height');
     this.mapService.leafletMap?.invalidateSize({pan: false});
     this.mapService.animationActive = false;
     if (this.initialMapView) this.mapService.leafletMap.setView(this.initialMapView.center, this.initialMapView.zoom, {animate: false});

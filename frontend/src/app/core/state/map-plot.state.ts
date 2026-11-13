@@ -1,3 +1,4 @@
+import { PeriodAgreement } from '../models/ensemble-agreement';
 import { MapPlotsService } from 'src/app/core/services/map-plots.service';
 import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State, StateContext } from '@ngxs/store';
@@ -7,6 +8,11 @@ import { Atp45Result, GeoJsonSliceResponse } from '../api/models';
 import { DRAFTABLE } from 'immer/dist/internal';
 
 export namespace MapPlotAction {
+  export class AddPeriodAgreement {
+    static readonly type = '[MapPlot] AddPeriodAgreement';
+    constructor(public result: PeriodAgreement, public selectedParams: ParameterEntry, public parentName: string, public threshold: number, public unit: string) {}
+  }
+
   export class Add {
     static readonly type = '[MapPlot] Add'
 
@@ -136,6 +142,27 @@ export class MapPlotState {
         draft.mapPlots.push(...statsPlots);
       }))
     });
+  }
+
+  @Action(MapPlotAction.AddPeriodAgreement)
+  addPeriodAgreement(ctx: StateContext<MapPlotStateModel>, action: MapPlotAction.AddPeriodAgreement) {
+    const r = action.result;
+    const plot = new MapPlot('stats');
+    plot.name = `${action.parentName} - percentage agreement (${action.threshold} ${action.unit})`;
+    plot.legendLayer = 'percentage agreement';
+    plot.visible = false;
+    plot.selectedParams = action.selectedParams;
+    plot.data = {values: [r.values.map(row => row.map(value => value === null ? -9999 : value))],
+      width: r.width, height: r.height, xmin: r.xmin, xmax: r.xmax, ymin: r.ymin, ymax: r.ymax,
+      pixelWidth: (r.xmax-r.xmin)/r.width, pixelHeight: (r.ymax-r.ymin)/r.height,
+      projection: 4326, noDataValue: -9999, numberOfRasters: 1, mins: [0], maxs: [100], ranges: [100]};
+    plot.metadata = this.mapPlotService._colorbarFromGeoRaster(plot.data, 'stats');
+    plot.agreementInfo = {memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
+      description: `At any time: ${r.startTime} – ${r.endTime} · ≥ ${action.threshold} ${action.unit}`};
+    ctx.setState(produce(draft => {
+      draft.mapPlots = draft.mapPlots.filter(p => p.type !== 'stats' || !p.name.startsWith(action.parentName + ' - '));
+      draft.mapPlots.push(plot);
+    }));
   }
 
   @Action(MapPlotAction.Show)

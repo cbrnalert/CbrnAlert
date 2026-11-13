@@ -1,3 +1,4 @@
+import { PeriodAgreement } from '../core/models/ensemble-agreement';
 import { AnimationSeries } from './animation/animation-model';
 import { HttpClient } from '@angular/common/http';
 import { ApiConfiguration } from '../core/api/api-configuration';
@@ -306,6 +307,11 @@ export class FlexpartService {
     dimensions: {[key: string]: string | number}) {
     return this.http.post(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/timeseries`,
       { latitude, longitude, dimensions }, { params: { layer }, responseType: 'blob' });
+  }
+
+  getPeriodAgreement(outputId: string, layer: string, dims: {[key: string]: number}, threshold: number) {
+    return this.http.post<PeriodAgreement>(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/stats`,
+      {dims, threshold}, {params: {layer, scope: 'period'}});
   }
 
   getEnsembleStats(outputId: string, layerName: string, dims: {[key: string]: number}, threshold: number) {

@@ -22,7 +22,6 @@
 .color-strip i { flex: 1; }
 .colorbar-ticks { display: flex; flex-direction: column; justify-content: space-between; height: 174px; margin-top: -7px; }
 ::ng-deep .flexpart-animation-dock { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 85%; height: min(320px, 48%); min-width: min(480px, calc(100% - 16px)); max-width: calc(100% - 16px); min-height: min(260px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow: hidden; z-index: 1100; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-::ng-deep .animation-active .leaflet-bottom { bottom: calc(var(--animation-dock-height, 320px) + 16px); }
 ::ng-deep .animation-active.ensemble-pick-location, ::ng-deep .animation-active.ensemble-pick-location .leaflet-pane, ::ng-deep .animation-active.ensemble-pick-location .leaflet-interactive { cursor: crosshair !important; }
 // Keep the slider handles and selection, without duplicating the chart inside it.
 ::ng-deep .animation-chart .rangeslider-rangeplot { display: none !important; }
