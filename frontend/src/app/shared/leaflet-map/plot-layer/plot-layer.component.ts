@@ -35,7 +35,7 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
     ) {}
 
   private isContourPlot(plot: MapPlot): boolean {
-    return plot.type === 'stats' && !['percentage agreement', 'arrival time'].includes(plot.legendLayer);
+    return plot.type === 'stats' && !['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer);
   }
 
   ngOnInit(): void {
@@ -47,8 +47,8 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
           (this.layer as FeatureGroup).setStyle({opacity, fillOpacity: opacity});
         });
       } else {
-        if (this.mapPlot.type == 'flexpart' || ["percentage agreement", "arrival time"].includes(this.mapPlot.legendLayer)) {
-          this.layer = this.mapPlotsService.addTiff(this.mapPlot.data, this.mapPlot.metadata as ColorbarData, this.mapPlot.legendLayer === 'arrival time') as unknown as TileLayer;
+        if (this.mapPlot.type == 'flexpart' || ["percentage agreement", "arrival time", "duration above threshold"].includes(this.mapPlot.legendLayer)) {
+          this.layer = this.mapPlotsService.addTiff(this.mapPlot.data, this.mapPlot.metadata as ColorbarData, ['arrival time', 'duration above threshold'].includes(this.mapPlot.legendLayer), this.mapPlot.legendLayer === 'duration above threshold') as unknown as TileLayer;
         } else {
           this.layer = this.mapPlotsService.addTiffMask(this.mapPlot.data) as unknown as TileLayer;
           this.layer.setZIndex(1500);

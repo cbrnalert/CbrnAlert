@@ -1,18 +1,18 @@
 <section class="arrival-histogram" [attr.aria-label]="histogramTitle">
   <header><strong>{{histogramTitle}}</strong><span *ngIf="pinned" class="pin-status">Pinned</span>
-    <button type="button" (click)="togglePin()" [disabled]="!distribution?.inside" [attr.aria-label]="(pinned ? 'Unpin ' : 'Pin ') + (isConcentration ? (isMaximum ? 'maximum concentration' : 'concentration') : 'arrival') + ' location'">{{pinned ? 'Unpin' : 'Pin'}}</button>
-    <button type="button" (click)="minimized = !minimized" [attr.aria-label]="(minimized ? 'Expand ' : 'Minimize ') + (isConcentration ? 'concentration' : 'arrival') + ' histogram'">{{minimized ? '+' : '−'}}</button>
+    <button type="button" (click)="togglePin()" [disabled]="!distribution?.inside" [attr.aria-label]="(pinned ? 'Unpin ' : 'Pin ') + (isDuration ? 'duration' : isConcentration ? (isMaximum ? 'maximum concentration' : 'concentration') : 'arrival') + ' location'">{{pinned ? 'Unpin' : 'Pin'}}</button>
+    <button type="button" (click)="minimized = !minimized" [attr.aria-label]="(minimized ? 'Expand ' : 'Minimize ') + (isDuration ? 'duration' : isConcentration ? 'concentration' : 'arrival') + ' histogram'">{{minimized ? '+' : '−'}}</button>
   </header>
   <div [hidden]="minimized" class="histogram-body">
     <p *ngIf="!distribution" class="histogram-hint">Move over the map · Click to pin</p>
     <ng-container *ngIf="distribution as d">
-      <div *ngIf="d.inside" class="histogram-caption">{{d.reached}}/{{d.total}} members {{isConcentration ? 'exceeded' : 'reached'}}<span *ngIf="d.valid < d.total"> · {{d.valid}} classifiable</span>
+      <div *ngIf="d.inside" class="histogram-caption">{{d.reached}}/{{d.total}} members {{isDuration ? 'with duration > 0 h' : isConcentration ? 'exceeded' : 'reached'}}<span *ngIf="d.valid < d.total"> · {{d.valid}} classifiable</span>
         <span class="grid-point">{{d.latitude | number:'1.3-3'}}°, {{d.longitude | number:'1.3-3'}}°</span>
       </div>
       <p *ngIf="d.message" class="histogram-hint">{{d.message}}</p>
     </ng-container>
     <p *ngIf="error" role="alert">{{error}}</p>
-    <div #chart class="arrival-distribution-chart" [hidden]="!hasDistributionChart" [attr.aria-label]="isConcentration ? 'Member concentrations with threshold, P10, median and P90 markers' : 'Arrival member counts by saved output time with P10, median and P90 markers'"></div>
+    <div #chart class="arrival-distribution-chart" [hidden]="!hasDistributionChart" [attr.aria-label]="isDuration ? 'Member durations in hours with P10, median and P90 markers' : isConcentration ? 'Member concentrations with threshold, P10, median and P90 markers' : 'Arrival member counts by saved output time with P10, median and P90 markers'"></div>
     <div *ngIf="hasDistributionChart && !pinned" class="histogram-hint footer">Click map to pin</div>
   </div>
 </section>

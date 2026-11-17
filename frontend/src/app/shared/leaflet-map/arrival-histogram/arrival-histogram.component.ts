@@ -52,9 +52,10 @@ export class ArrivalHistogramComponent implements AfterViewInit, OnChanges, OnDe
     }
   }
 
+  get isDuration(): boolean { return this.plot.agreementInfo?.analysis === 'duration'; }
   get isMaximum(): boolean { return this.plot.agreementInfo?.analysis === 'maximum'; }
   get isConcentration(): boolean { return this.isMaximum || this.plot.agreementInfo?.analysis === 'timestep'; }
-  get histogramTitle(): string { return this.isMaximum ? 'Maximum concentration' : this.isConcentration ? 'Concentration' : 'Arrival distribution'; }
+  get histogramTitle(): string { return this.isDuration ? 'Duration above threshold' : this.isMaximum ? 'Maximum concentration' : this.isConcentration ? 'Concentration' : 'Arrival distribution'; }
   get hasDistributionChart(): boolean { return !!this.distribution?.inside && !!(this.distribution.times.length || this.distribution.maximum); }
 
   private onMove = (event: LeafletMouseEvent) => {
@@ -78,7 +79,7 @@ export class ArrivalHistogramComponent implements AfterViewInit, OnChanges, OnDe
   });
 
   private select(longitude:number, latitude:number): void {
-    const distribution = this.isConcentration ? maximumDistribution(this.plot,longitude,latitude) : arrivalDistribution(this.plot,longitude,latitude);
+    const distribution = (this.isConcentration || this.isDuration) ? maximumDistribution(this.plot,longitude,latitude) : arrivalDistribution(this.plot,longitude,latitude);
     if (distribution.key === this.distribution?.key) return;
     this.distribution = distribution;
     this.error = '';
@@ -116,12 +117,12 @@ export class ArrivalHistogramComponent implements AfterViewInit, OnChanges, OnDe
         traces=[{type:'bar',x:peak.centers,y:distribution.counts,width:peak.widths,
           customdata:distribution.counts.map((_,i)=>[peak.edges[i],peak.edges[i+1]]),
           marker:{color:peak.colors,line:{color:'#234e70',width:1}},showlegend:false,
-          hovertemplate:`${this.isMaximum?'Maximum':'Concentration'} %{customdata[0]:.3g}–%{customdata[1]:.3g} ${peak.unit}<br>%{y} members<extra></extra>`}];
-        axis={type:'linear',range:peak.range,title:{text:`${this.isMaximum?'Maximum concentration':'Concentration'} (${peak.unit})`,font:{size:10},standoff:0},tickangle:0,tickformat:'.3~g'};
+          hovertemplate:`${this.isDuration?'Duration':this.isMaximum?'Maximum':'Concentration'} %{customdata[0]:.3g}–%{customdata[1]:.3g} ${peak.unit}<br>%{y} members<extra></extra>`}];
+        axis={type:'linear',range:peak.range,title:{text:`${this.isDuration?'Duration above threshold':this.isMaximum?'Maximum concentration':'Concentration'} (${peak.unit})`,font:{size:10},standoff:0},tickangle:0,tickformat:'.3~g'};
         markers=[{position:peak.lower,name:'P10',color:'#5b8db8',dash:'dash',rank:1},
           {position:peak.upper,name:'P90',color:'#234e70',dash:'dash',rank:3},
           {position:peak.median,name:'Median',color:'navy',dash:'solid',rank:2},
-          {position:peak.threshold,name:'Threshold',color:'#b91c1c',dash:'solid',rank:0}];
+          ...(this.isDuration ? [] : [{position:peak.threshold,name:'Threshold',color:'#b91c1c',dash:'solid' as const,rank:0}])];
       } else {
         const milliseconds = times.map(Date.parse);
         const widths = milliseconds.map((time,index) => HISTOGRAM_BAR_FRACTION * Math.min(

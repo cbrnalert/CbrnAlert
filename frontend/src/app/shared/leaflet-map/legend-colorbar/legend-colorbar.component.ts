@@ -55,6 +55,7 @@ export class LegendColorbarComponent implements OnInit {
     if (this.layerName === 'arrival time' && this.arrivalStartTime) {
       return new Date(Date.parse(this.arrivalStartTime) + tick * 3600000).toISOString().slice(5, 16).replace('T', ' ');
     }
+    if (this.layerName === 'duration above threshold') return Number(tick.toPrecision(3)).toString();
     return String(tick)
   }
 
@@ -66,6 +67,8 @@ export class LegendColorbarComponent implements OnInit {
       this.unit = 'ng / m³';
     } else if (/D_spec/.test(layerName)) {
       this.unit = 'ng / m²';
+    } else if (layerName === 'duration above threshold') {
+      this.unit = 'Median duration (h)';
     } else if (layerName === 'arrival time') {
       this.unit = 'Median first arrival (UTC)';
     } else if (layerName == 'percentage agreement') {

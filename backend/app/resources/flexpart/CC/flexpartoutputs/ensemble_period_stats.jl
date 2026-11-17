@@ -22,11 +22,30 @@ function contour_indices(mask, x_order, y_order)
     cells
 end
 
+"""Duration weights use intervals ending at saved outputs, starting at the run start
+when forward-run metadata is available, otherwise at the first saved output.
+This estimates duration at saved-output resolution without interpolating crossings.
+"""
+function duration_intervals(ds, times)
+    start = first(times)
+    if get(ds.attrib, "ldirect", 1) == 1 && haskey(ds.attrib, "ibdate") && haskey(ds.attrib, "ibtime")
+        date = lpad(string(ds.attrib["ibdate"]), 8, '0')
+        time = lpad(string(ds.attrib["ibtime"]), 6, '0')
+        start = tryparse(DateTime, date*time, dateformat"yyyymmddHHMMSS")
+        isnothing(start) && throw(ArgumentError("Invalid simulation start time."))
+        start <= first(times) || throw(ArgumentError("Simulation starts after the first output."))
+    end
+    hours = [Dates.value(times[i] - (i == 1 ? start : times[i-1])) / 3_600_000 for i in eachindex(times)]
+    sum(hours) > 0 || throw(ArgumentError("Duration needs a known output interval."))
+    (; start, hours)
+end
+
 """Count each member once if it reaches the threshold in the inclusive output-time range.
 A member with incomplete data is counted as valid only if an exceedance is established.
 Read one spatial slice at a time, never the full ensemble/time cube.
 """
-function calculate(output_dir, layer, threshold, first_time, last_time, dimensions=Dict(); arrival=false, snapshot=false)
+function calculate(output_dir, layer, threshold, first_time, last_time, dimensions=Dict(); arrival=false, snapshot=false, duration=false)
+    count(identity, (arrival, snapshot, duration)) <= 1 || throw(ArgumentError("Choose one analysis."))
     threshold isa Real && isfinite(threshold) && threshold > 0 || throw(ArgumentError("Threshold must be positive and finite."))
     first_time isa Integer && last_time isa Integer && 1 <= first_time <= last_time || throw(ArgumentError("Invalid time range."))
     snapshot && first_time != last_time && throw(ArgumentError("Snapshot requires one output time."))
@@ -40,6 +59,8 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
     hits = zeros(Int, 0, 0); valid = zeros(Int, 0, 0)
     arrival_samples = zeros(Float64, 0, 0)
     maximum_samples = zeros(Float64, 0, 0)
+    duration_samples = zeros(Float64, 0, 0)
+    duration_reference = nothing
     for (member_index, member) in enumerate(members)
         files = filter(file -> endswith(file, ".nc"), readdir(joinpath(output_dir, member); join=true))
         length(files) == 1 || throw(ArgumentError("Expected one NetCDF file for $member."))
@@ -54,12 +75,22 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
             times = DateTime.(ds[names[ta]][:])
             issorted(times) && all(>(Millisecond(0)), diff(times)) || throw(ArgumentError("Output times must increase."))
             last_time <= length(times) || throw(ArgumentError("Time range outside output."))
+            if duration
+                first_time == 1 && last_time == length(times) || throw(ArgumentError("Duration uses the full simulation."))
+                intervals = duration_intervals(ds, times)
+                if isnothing(duration_reference)
+                    duration_reference = intervals
+                else
+                    intervals == duration_reference || throw(ArgumentError("Member output intervals differ."))
+                end
+            end
             length(xs) > 1 && length(ys) > 1 || throw(ArgumentError("Need a two-dimensional grid."))
             if isnothing(reference)
                 reference = (; xs, ys, times)
                 hits = zeros(Int, length(xs), length(ys)); valid = zeros(Int, size(hits))
                 arrival && (arrival_samples = fill(NaN, length(hits), length(members)))
-                !arrival && (maximum_samples = fill(NaN, length(hits), length(members)))
+                duration && (duration_samples = fill(NaN, length(hits), length(members)))
+                !arrival && !duration && (maximum_samples = fill(NaN, length(hits), length(members)))
             else
                 xs == reference.xs && ys == reference.ys && times == reference.times || throw(ArgumentError("Member grids or times differ."))
             end
@@ -72,7 +103,8 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
                 selectors[axis] = index
             end
             exceeded = falses(size(hits)); complete = trues(size(hits))
-            maxima = arrival ? nothing : fill(-Inf, size(hits))
+            maxima = arrival || duration ? nothing : fill(-Inf, size(hits))
+            durations = duration ? zeros(Float64, size(hits)) : nothing
             for time in first_time:last_time
                 selectors[ta] = time
                 grid = variable[selectors...]
@@ -81,8 +113,9 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
                     value = grid[cell]
                     finite = !ismissing(value) && value isa Real && isfinite(value)
                     complete[cell] &= finite
-                    !arrival && finite && (maxima[cell] = max(maxima[cell], value))
+                    !arrival && !duration && finite && (maxima[cell] = max(maxima[cell], value))
                     if finite && value >= threshold
+                        duration && (durations[cell] += duration_reference.hours[time])
                         if arrival && !exceeded[cell] && complete[cell]
                             arrival_samples[cell, member_index] = Dates.value(times[time] - times[first_time]) / 3_600_000
                         end
@@ -90,7 +123,12 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
                     end
                 end
             end
-            if !arrival
+            if duration
+                for cell in eachindex(hits)
+                    complete[cell] && (duration_samples[cell, member_index] = durations[cell])
+                end
+            end
+            if !arrival && !duration
                 for cell in eachindex(hits)
                     complete[cell] && (maximum_samples[cell, member_index] = maxima[cell])
                 end
@@ -116,7 +154,30 @@ function calculate(output_dir, layer, threshold, first_time, last_time, dimensio
         "xmin"=>minimum(xs)-dx/2, "xmax"=>maximum(xs)+dx/2,
         "ymin"=>minimum(ys)-dy/2, "ymax"=>maximum(ys)+dy/2,
         "startTime"=>string(reference.times[first_time])*"Z", "endTime"=>string(reference.times[last_time])*"Z")
-    if arrival
+    if duration
+        median = Matrix{Union{Nothing, Float64}}(nothing, size(hits))
+        histograms = Matrix{Vector{Vector{Float64}}}(undef, size(hits))
+        complete_counts = zeros(Int, size(hits))
+        positive_counts = zeros(Int, size(hits))
+        for cell in eachindex(hits)
+            values = filter(isfinite, duration_samples[cell, :])
+            complete_counts[cell] = length(values)
+            positive_counts[cell] = count(>(0), values)
+            !isempty(values) && (median[cell] = Statistics.median(values))
+            frequencies = Dict{Float64, Int}()
+            for value in values
+                frequencies[value] = get(frequencies, value, 0) + 1
+            end
+            histograms[cell] = [Float64[value, frequencies[value]] for value in sort!(collect(keys(frequencies)))]
+        end
+        result["analysis"] = "duration"
+        result["values"] = rows(median)
+        result["durationValues"] = rows(histograms)
+        result["validCounts"] = rows(complete_counts)
+        result["counts"] = rows(positive_counts)
+        result["durationHours"] = sum(duration_reference.hours)
+        result["startTime"] = string(duration_reference.start)*"Z"
+    elseif arrival
         low = Matrix{Union{Nothing, Float64}}(nothing, size(hits))
         median = copy(low); high = copy(low); arrival_counts = zeros(Int, size(hits))
         histograms = Matrix{Vector{Vector{Int}}}(undef, size(hits))

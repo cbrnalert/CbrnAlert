@@ -127,3 +127,51 @@ end
     @test_throws ArgumentError EnsemblePeriodStats.grid_spacing([1.,2.,4.])
     @test_throws ArgumentError EnsemblePeriodStats.grid_spacing([1.,2.,1.])
 end
+
+@testset "Full-simulation duration above threshold" begin
+    mktempdir() do dir
+        for member in 1:4
+            folder=joinpath(dir,"member$member");mkpath(folder)
+            NCDatasets.NCDataset(joinpath(folder,"output.nc"),"c") do ds
+                ds.attrib["ibdate"]="20260110";ds.attrib["ibtime"]="000000";ds.attrib["ldirect"]=1
+                for (name,n) in [("longitude",2),("latitude",2),("height",2),("time",4)]
+                    NCDatasets.defDim(ds,name,n)
+                end
+                NCDatasets.defVar(ds,"longitude",[4.,5.],("longitude",))
+                NCDatasets.defVar(ds,"latitude",[50.,51.],("latitude",))
+                NCDatasets.defVar(ds,"height",[1.,2.],("height",))
+                t=NCDatasets.defVar(ds,"time",Float64,("time",);attrib=Dict("units"=>"hours since 2026-01-10"));t[:]=[1,2,3,4]
+                values=Array{Union{Missing,Float64}}(zeros(2,2,2,4))
+                values[1,1,1,:]=member==1 ? [5.,0.,5.,0.] : member==2 ? [0.,0.,0.,0.] : member==3 ? [5.,5.,5.,5.] : [5.,missing,0.,5.]
+                values[2,2,1,:].=missing
+                v=NCDatasets.defVar(ds,"concentration",Float64,("longitude","latitude","height","time");fillvalue=-9999.);v[:,:,:,:]=values
+                a=NCDatasets.defVar(ds,"alternate",Float64,("time","latitude","longitude","height");fillvalue=-9999.);a[:,:,:,:]=permutedims(values,(4,2,1,3))
+            end
+        end
+        r=EnsemblePeriodStats.calculate(dir,"concentration",5.,1,4;duration=true)
+        @test r["analysis"]=="duration"
+        @test r["durationHours"]==4.
+        @test r["startTime"]=="2026-01-10T00:00:00Z"
+        @test r["durationValues"][2][1]==[[0.,1.],[2.,1.],[4.,1.]]
+        @test r["values"][2][1]==2. # Includes the member with zero duration.
+        @test r["counts"][2][1]==2 # Positive duration among complete members only.
+        @test r["validCounts"][2][1]==3 # Missing histories cannot establish total duration.
+        @test isnothing(r["values"][1][2])
+        @test isempty(r["durationValues"][1][2])
+        @test r["values"][2][2]==0.
+        @test r["durationValues"][2][2]==[[0.,4.]]
+        @test isequal(r,EnsemblePeriodStats.calculate(dir,"alternate",5.,1,4;duration=true))
+        @test_throws ArgumentError EnsemblePeriodStats.calculate(dir,"concentration",5.,2,4;duration=true)
+        @test_throws ArgumentError EnsemblePeriodStats.calculate(dir,"concentration",5.,1,4;duration=true,arrival=true)
+        # Actual unequal output intervals, including the first simulation hour.
+        for member in 1:4
+            NCDatasets.NCDataset(joinpath(dir,"member$member","output.nc"),"a") do ds
+                ds["time"][:]=[1,2,4,7]
+            end
+        end
+        irregular=EnsemblePeriodStats.calculate(dir,"concentration",5.,1,4;duration=true)
+        @test irregular["durationHours"]==7.
+        @test irregular["durationValues"][2][1]==[[0.,1.],[3.,1.],[7.,1.]]
+        @test irregular["values"][2][1]==3.
+    end
+end

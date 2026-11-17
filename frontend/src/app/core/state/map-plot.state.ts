@@ -149,7 +149,8 @@ export class MapPlotState {
     const r = action.result;
     const plot = new MapPlot('stats');
     const arrival = r.analysis === 'arrival';
-    plot.legendLayer = arrival ? 'arrival time' : 'percentage agreement';
+    const duration = r.analysis === 'duration';
+    plot.legendLayer = duration ? 'duration above threshold' : arrival ? 'arrival time' : 'percentage agreement';
     plot.name = `${action.parentName} - ${plot.legendLayer} (${action.threshold} ${action.unit})`;
     plot.visible = false;
     plot.selectedParams = action.selectedParams;
@@ -162,9 +163,18 @@ export class MapPlotState {
       plot.data.numberOfRasters = 3;
       plot.data.mins = [0, 0, 0]; plot.data.maxs = [Math.max(1e-9, (Date.parse(r.endTime) - Date.parse(r.startTime)) / 3600000), r.memberCount, r.memberCount]; plot.data.ranges = plot.data.maxs;
     }
-    plot.metadata = arrival ? this.mapPlotService.arrivalColorbar(r.startTime, r.endTime) : this.mapPlotService._colorbarFromGeoRaster(plot.data, 'stats');
-    plot.agreementInfo = {analysis: r.analysis, maximumValues: r.maximumValues, concentrationValues: r.concentrationValues, threshold: action.threshold, unit: action.unit, startTime: r.startTime, arrivalLower: r.arrivalLower, arrivalUpper: r.arrivalUpper, arrivalCounts: r.arrivalCounts, arrivalHistogram: r.arrivalHistogram, arrivalTimes: r.arrivalTimes, memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
-      description: `${arrival ? 'Arrival time' : 'At any time'}: ${r.startTime} – ${r.endTime} · ≥ ${action.threshold} ${action.unit}`};
+    let durationScale = 1;
+    if (duration) {
+      let maximumMedian = 0;
+      for (const row of r.values) for (const value of row) {
+        if (value !== null && Number.isFinite(value)) maximumMedian = Math.max(maximumMedian, value);
+      }
+      durationScale = Math.max(1, Math.ceil(maximumMedian));
+      plot.data.maxs = [durationScale]; plot.data.ranges = [durationScale];
+    }
+    plot.metadata = duration ? this.mapPlotService.durationColorbar(durationScale) : arrival ? this.mapPlotService.arrivalColorbar(r.startTime, r.endTime) : this.mapPlotService._colorbarFromGeoRaster(plot.data, 'stats');
+    plot.agreementInfo = {analysis: r.analysis, durationHours: r.durationHours, durationValues: r.durationValues, maximumValues: r.maximumValues, concentrationValues: r.concentrationValues, threshold: action.threshold, unit: action.unit, startTime: r.startTime, arrivalLower: r.arrivalLower, arrivalUpper: r.arrivalUpper, arrivalCounts: r.arrivalCounts, arrivalHistogram: r.arrivalHistogram, arrivalTimes: r.arrivalTimes, memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
+      description: `${duration ? 'Duration above threshold' : arrival ? 'Arrival time' : 'At any time'}: ${r.startTime} – ${r.endTime} · ≥ ${action.threshold} ${action.unit}`};
     const plots = [plot];
     for (const contour of r.memberContours || []) {
       const member = new MapPlot('stats');

@@ -1117,9 +1117,9 @@ paths:
           name: scope
           schema:
             type: string
-            enum: [timestep, period, arrival, snapshot]
+            enum: [timestep, period, arrival, snapshot, duration]
             default: timestep
-          description: Timestep returns the legacy TIFF. Snapshot returns selected-time concentration distributions, agreement and sparse member contours as JSON (TiEnd must equal Ti). Period analyzes any exceedance in a period; arrival analyzes first arrival. Arrival scope returns median and P10/P90 elapsed hours from startTime among members with known first arrivals.
+          description: Timestep returns the legacy TIFF. Snapshot returns selected-time concentration distributions, agreement and sparse member contours as JSON (TiEnd must equal Ti). Period analyzes any exceedance in a period; arrival analyzes first arrival. Arrival scope returns median and P10/P90 elapsed hours from startTime among members with known first arrivals. Duration uses the full simulation, returning median total hours at or above threshold, including zero-duration complete members. Each output represents the interval ending at its timestamp, beginning at forward-run ibdate/ibtime metadata when available, otherwise at the first saved output. Incomplete histories are excluded; threshold crossings are not interpolated.
 
       requestBody:
         required: true
@@ -1135,14 +1135,14 @@ paths:
                   type: object
                   additionalProperties:
                     type: integer
-                  description: One-based dimension indices. Ti is the first or single timestep, height is optional, and period/arrival scopes additionally require TiEnd (inclusive).
+                  description: One-based dimension indices. Ti is the first or single timestep, height is optional, and period/arrival/duration scopes additionally require TiEnd (inclusive). Duration requires Ti=1 and TiEnd equal to the full output count.
                 threshold:
                   type: number
                   description: Threshold value used to calculate stats (ensemble agreement and individual masks)
 
       responses:
         '200':
-          description: TIFF for timestep scope, JSON for snapshot/period/arrival scopes. Unknown non-exceeding members with incomplete period data are excluded from the valid denominator.
+          description: TIFF for timestep scope, JSON for snapshot/period/arrival/duration scopes. Unknown non-exceeding members with incomplete period data are excluded from the valid denominator.
           content:
             application/json:
               schema:
@@ -1151,7 +1151,7 @@ paths:
                 properties:
                   values:
                     type: array
-                    description: Row-major percentages (period) or median arrival hours from startTime (arrival), north to south and west to east; null where unavailable.
+                    description: Row-major percentages (period) or median arrival hours from startTime (arrival), or median total hours above threshold (duration), north to south and west to east; null where unavailable.
                     items:
                       type: array
                       items:
@@ -1159,8 +1159,8 @@ paths:
                         nullable: true
                   analysis:
                     type: string
-                    enum: [arrival, maximum, timestep]
-                    description: Identifies arrival-time or maximum-concentration histogram metadata.
+                    enum: [arrival, maximum, timestep, duration]
+                    description: Identifies arrival, duration, maximum-concentration, or timestep histogram metadata.
                   concentrationValues:
                     type: array
                     description: Selected-time concentration frequencies for snapshot scope, in north-to-south row order; each cell contains [concentration, member count] pairs. Missing values are excluded, zero values retained.
@@ -1186,6 +1186,21 @@ paths:
                   maximumValues:
                     type: array
                     description: Exact maximum-concentration frequencies for complete member histories in period scope. Same row/column order as values; each cell contains [maximum concentration, member count] pairs. Missing or incomplete members are excluded; zero maxima are retained.
+                    items:
+                      type: array
+                      items:
+                        type: array
+                        items:
+                          type: array
+                          minItems: 2
+                          maxItems: 2
+                          items: {type: number}
+                  durationHours:
+                    type: number
+                    description: Total modeled output-interval hours used for the duration calculation and map/histogram scale. Duration scope only.
+                  durationValues:
+                    type: array
+                    description: Exact [duration in hours, member count] frequencies for complete members, in the same grid order as values. Zero durations are retained. validCounts gives complete-member counts; null map values mean no complete members.
                     items:
                       type: array
                       items:

@@ -2,8 +2,10 @@ export type ArrivalHistogramBin = [number, number]; // [zero-based output index,
 export interface AgreementInfo {
   threshold?: number;
   unit?: string;
-  analysis?: 'arrival' | 'maximum' | 'timestep';
+  analysis?: 'arrival' | 'maximum' | 'timestep' | 'duration';
   concentrationValues?: [number, number][][][];
+  durationHours?: number;
+  durationValues?: [number, number][][][];
   maximumValues?: [number, number][][][];
   startTime?: string;
   arrivalLower?: (number | null)[][];
@@ -18,8 +20,10 @@ export interface AgreementInfo {
 }
 export interface PeriodAgreement {
   memberContours?: {member: number; cells: number[]}[];
-  analysis?: 'arrival' | 'maximum' | 'timestep';
+  analysis?: 'arrival' | 'maximum' | 'timestep' | 'duration';
   concentrationValues?: [number, number][][][];
+  durationHours?: number;
+  durationValues?: [number, number][][][];
   maximumValues?: [number, number][][][];
   arrivalLower?: (number | null)[][];
   arrivalUpper?: (number | null)[][];
