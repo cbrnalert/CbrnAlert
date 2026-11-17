@@ -111,7 +111,9 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
       other.selected = [];
     }
     // New map plots hide statistics; reflect actual visibility when reopening the panel.
-    const visible = this.resultPlots().filter(plot => plot.visible);
+    const results = this.resultPlots();
+    if (!results.length) this.state.ready = false;
+    const visible = results.filter(plot => plot.visible);
     this.state.agreement = visible.some(plot => ['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer));
     if (!this.state.agreement) this.state.hiddenIds = [];
     this.state.selected = visible.filter(plot => /^member \d+$/.test(plot.legendLayer)).map(plot => Number(plot.legendLayer.slice(7)));

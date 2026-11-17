@@ -8,6 +8,7 @@ export interface AgreementInfo {
   durationValues?: [number, number][][][];
   maximumValues?: [number, number][][][];
   startTime?: string;
+  endTime?: string;
   arrivalLower?: (number | null)[][];
   arrivalUpper?: (number | null)[][];
   arrivalCounts?: number[][];

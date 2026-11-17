@@ -100,9 +100,8 @@ export class MapPlotState {
     let mapPlot = this.mapPlotService.createMapPlotGeoJSON(action);
     ctx.setState(produce(draft => {
       if (mapPlot.type === 'flexpart') {
-        draft.mapPlots.forEach(plot => {
-          if (plot.type === 'stats') plot.visible = false;
-        });
+        draft.mapPlots = draft.mapPlots.filter(plot => plot.type !== 'flexpart' && plot.type !== 'stats');
+        draft.activePlot = undefined;
       }
       draft.mapPlots.push(mapPlot);
     }))
@@ -116,9 +115,8 @@ export class MapPlotState {
       let mapPlot = res;
       ctx.setState(produce(draft => {
         if (mapPlot.type === 'flexpart') {
-          draft.mapPlots.forEach(plot => {
-            if (plot.type === 'stats') plot.visible = false;
-          });
+          draft.mapPlots = draft.mapPlots.filter(plot => plot.type !== 'flexpart' && plot.type !== 'stats');
+          draft.activePlot = undefined;
         }
         draft.mapPlots.push(mapPlot);
       }))
@@ -173,7 +171,7 @@ export class MapPlotState {
       plot.data.maxs = [durationScale]; plot.data.ranges = [durationScale];
     }
     plot.metadata = duration ? this.mapPlotService.durationColorbar(durationScale) : arrival ? this.mapPlotService.arrivalColorbar(r.startTime, r.endTime) : this.mapPlotService._colorbarFromGeoRaster(plot.data, 'stats');
-    plot.agreementInfo = {analysis: r.analysis, durationHours: r.durationHours, durationValues: r.durationValues, maximumValues: r.maximumValues, concentrationValues: r.concentrationValues, threshold: action.threshold, unit: action.unit, startTime: r.startTime, arrivalLower: r.arrivalLower, arrivalUpper: r.arrivalUpper, arrivalCounts: r.arrivalCounts, arrivalHistogram: r.arrivalHistogram, arrivalTimes: r.arrivalTimes, memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
+    plot.agreementInfo = {analysis: r.analysis, durationHours: r.durationHours, durationValues: r.durationValues, maximumValues: r.maximumValues, concentrationValues: r.concentrationValues, threshold: action.threshold, unit: action.unit, startTime: r.startTime, endTime: r.endTime, arrivalLower: r.arrivalLower, arrivalUpper: r.arrivalUpper, arrivalCounts: r.arrivalCounts, arrivalHistogram: r.arrivalHistogram, arrivalTimes: r.arrivalTimes, memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
       description: `${duration ? 'Duration above threshold' : arrival ? 'Arrival time' : 'At any time'}: ${r.startTime} – ${r.endTime} · ≥ ${action.threshold} ${action.unit}`};
     const plots = [plot];
     for (const contour of r.memberContours || []) {

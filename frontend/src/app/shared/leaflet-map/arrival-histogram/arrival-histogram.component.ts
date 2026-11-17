@@ -143,8 +143,8 @@ export class ArrivalHistogramComponent implements AfterViewInit, OnChanges, OnDe
       for (const marker of markers) if (marker.position !== undefined) traces.push({type:'scatter',mode:'lines',x:[marker.position,marker.position],y:[0,maximum*1.08],
         name:marker.name,legendrank:marker.rank,line:{color:marker.color,dash:marker.dash,width:marker.name==='Median'?2:marker.name==='Threshold'?1.5:1},hoverinfo:'skip'});
       const layout: Partial<Layout> = {autosize:true,margin:{l:35,r:10,t:24,b:38},font:{size:10},
-        xaxis:{...axis,fixedrange:true,showgrid:true,gridcolor:'#d1d5db',griddash:'dash'},
-        yaxis:{title:{text:'Members',font:{size:10}},range:[0,maximum*1.15],dtick:maximum<=5?1:undefined,fixedrange:true,showgrid:true,gridcolor:'#d1d5db',griddash:'dash'},
+        xaxis:{...axis,fixedrange:true,showgrid:true,gridcolor:'rgba(209,213,219,0.5)',griddash:'dash'},
+        yaxis:{title:{text:'Members',font:{size:10}},range:[0,maximum*1.15],dtick:maximum<=5?1:undefined,fixedrange:true,showgrid:true,gridcolor:'rgba(209,213,219,0.5)',griddash:'dash'},
         legend:{orientation:'h',x:1,xanchor:'right',y:1.2,font:{size:peak?9:10},traceorder:'normal'},bargap:.15};
       await this.plotly.react(this.chart.nativeElement,traces,layout,{responsive:true,displayModeBar:false,staticPlot:false});
     }).catch(() => {

@@ -1,3 +1,4 @@
+import { mapExportHeading } from './map-export-heading';
 import { MapExportControl } from './map-export-control';
 import { agreementReadout } from './agreement-readout';
 import { MapAction } from 'src/app/core/state/map.state';
@@ -181,7 +182,13 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
     this.mapService.leafletMap = map;
     this.map = map;
     this.addOpacityControl(map);
-    this.exportControl = new MapExportControl().addTo(map);
+    this.exportControl = new MapExportControl(() => {
+      const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
+      const active = this.store.selectSnapshot(MapPlotState.activePlot);
+      const animationTime = this.mapService.animationActive
+        ? map.getContainer().querySelector('.animation-controls .timestep')?.textContent?.trim().replace(/\s*\(\d+\/\d+\)$/, '') || '' : undefined;
+      return mapExportHeading(plots, active?.id, animationTime);
+    }).addTo(map);
     // Initial map settings at startup
     map.fitBounds(latLngBounds(latLng(57, -15), latLng(43, 33)));
     this.layersControl.baseLayers['ESRI Satellite Map'].addTo(map);
