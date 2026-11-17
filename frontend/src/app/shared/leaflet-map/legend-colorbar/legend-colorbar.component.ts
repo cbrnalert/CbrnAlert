@@ -22,6 +22,8 @@ export class LegendColorbarComponent implements OnInit {
   receivedData:string;
   unit: string;
 
+  @Input() arrivalStartTime?: string;
+
   activePlot: MapPlot | null = null;
   activeLayerUnit: string | null = null;
 
@@ -50,6 +52,9 @@ export class LegendColorbarComponent implements OnInit {
   ngOnInit(): void {}
 
   formatTick(tick:number) {
+    if (this.layerName === 'arrival time' && this.arrivalStartTime) {
+      return new Date(Date.parse(this.arrivalStartTime) + tick * 3600000).toISOString().slice(5, 16).replace('T', ' ');
+    }
     return String(tick)
   }
 
@@ -61,6 +66,8 @@ export class LegendColorbarComponent implements OnInit {
       this.unit = 'ng / m³';
     } else if (/D_spec/.test(layerName)) {
       this.unit = 'ng / m²';
+    } else if (layerName === 'arrival time') {
+      this.unit = 'Median first arrival (UTC)';
     } else if (layerName == 'percentage agreement') {
       this.unit = '% members over threshold';
     } else {

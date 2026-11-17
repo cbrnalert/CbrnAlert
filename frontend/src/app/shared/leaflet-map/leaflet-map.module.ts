@@ -1,3 +1,4 @@
+import { ArrivalHistogramComponent } from './arrival-histogram/arrival-histogram.component';
 import { LeafletMapComponent } from './leaflet-map.component';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -9,6 +10,7 @@ import { LegendColorbarComponent } from './legend-colorbar/legend-colorbar.compo
 
 @NgModule({
   declarations: [
+    ArrivalHistogramComponent,
     LeafletMapComponent,
     PlotLayerComponent,
     LegendColorbarComponent

@@ -3,9 +3,10 @@
     <div *ngFor="let mapPlot of mapPlots">
       <app-plot-layer [visible]="mapPlot.visible" [mapPlot]="mapPlot"></app-plot-layer>
     </div>
+    <app-arrival-histogram *ngIf="arrivalHistogramPlot(mapPlots) as arrivalPlot" [plot]="arrivalPlot" [map]="map"></app-arrival-histogram>
     <div class="map-legends" *ngIf="activePlot$ | async as activePlot">
       <app-legend-colorbar *ngFor="let plot of legendPlots(mapPlots, activePlot)"
-        [legendLayer]="plot.legendLayer" [colorbar]="$any(plot.metadata)"></app-legend-colorbar>
+        [legendLayer]="plot.legendLayer" [arrivalStartTime]="plot.agreementInfo?.startTime" [colorbar]="$any(plot.metadata)"></app-legend-colorbar>
     </div>
   </div>
 

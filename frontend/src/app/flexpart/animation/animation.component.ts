@@ -69,6 +69,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
   });
   private rasters: any[] = [];
   private currentLayer?: TileLayer;
+  private opacitySubscription?: Subscription;
   private pendingLayer?: TileLayer;
   private pendingIndex?: number;
   private locationMarker?: Marker;
@@ -118,6 +119,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
     DomEvent.disableScrollPropagation(this.dock);
     mapElement.classList.add('animation-active');
     this.mapService.animationActive = true;
+    this.opacitySubscription = this.mapService.overlayOpacity$.subscribe(opacity => this.currentLayer?.setOpacity(opacity));
     map.closePopup();
     const pane = map.getPane('flexpart-animation') || map.createPane('flexpart-animation');
     pane.style.zIndex = '450';
@@ -249,7 +251,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.currentLayer = layer;
       this.pendingLayer = undefined;
       this.pendingIndex = undefined;
-      layer.setOpacity(0.8);
+      layer.setOpacity(this.mapService.overlayOpacity);
       this.currentIndex = index;
       this.frameLoading = false;
       this.moveCursor();
@@ -452,6 +454,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     this.stopResize();
+    this.opacitySubscription?.unsubscribe();
     this.frameRequest?.unsubscribe();
     this.seriesRequest?.unsubscribe();
     this.coordinateChanges.unsubscribe();

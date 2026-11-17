@@ -209,8 +209,8 @@ function get_ensemble_stats()
     layername = Genie.Router.params(:layer)
     payload = jsonpayload()
     scope = Genie.Router.params(:scope, "timestep")
-    scope in ("timestep", "period") || return HTTP.Response(400, "Invalid analysis scope.")
-    if scope == "period"
+    scope in ("timestep", "period", "arrival", "snapshot") || return HTTP.Response(400, "Invalid analysis scope.")
+    if scope in ("period", "arrival", "snapshot")
         output = _output_by_uuid(output_id)
         isnothing(output) && return HTTP.Response(404, "Output not found")
         run = related(output, FlexpartRun)[]
@@ -218,7 +218,7 @@ function get_ensemble_stats()
         try
             dimensions = get(payload, "dims", Dict())
             result = EnsemblePeriodStats.calculate(joinpath(run.path, "output"), layername,
-                get(payload, "threshold", nothing), get(dimensions, "Ti", nothing), get(dimensions, "TiEnd", nothing), dimensions)
+                get(payload, "threshold", nothing), get(dimensions, "Ti", nothing), get(dimensions, "TiEnd", nothing), dimensions; arrival=scope == "arrival", snapshot=scope == "snapshot")
             return result |> json
         catch err
             if err isa ArgumentError || err isa KeyError || err isa BoundsError

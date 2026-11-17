@@ -8,7 +8,7 @@ import { MapPlotAction, MapPlotState } from 'src/app/core/state/map-plot.state';
 import { MapPlot, ParameterEntry } from 'src/app/core/models/map-plot';
 
 interface AnalysisState {
-  mode: 'timestep' | 'period'; startIndex: number; endIndex: number; calculatedDescription?: string;
+  mode: 'timestep' | 'period' | 'arrival'; startIndex: number; endIndex: number; calculatedDescription?: string;
   parentName: string; threshold: string; calculatedThreshold?: number; ready: boolean;
   agreement: boolean; members: string; selected: number[]; hiddenIds: number[];
 }
@@ -50,12 +50,17 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
   get timestep(): string { return String(this.dimensions['Ti'] || ''); }
 
   get times(): (string | number)[] { return this.availableDimensions['Ti'] || []; }
-  get validPeriod(): boolean { return this.state.mode === 'timestep' || (this.times.length > 0 && this.state.startIndex >= 0 && this.state.endIndex < this.times.length && this.state.startIndex <= this.state.endIndex); }
+  get validPeriod(): boolean {
+    if (this.state.mode === 'timestep') return true;
+    if (!this.times.length) return false;
+    if (this.state.mode === 'arrival') return true;
+    return this.state.startIndex >= 0 && this.state.endIndex < this.times.length && this.state.startIndex <= this.state.endIndex;
+  }
   formatTime(time: string | number): string { return String(time).replace('T', ' ').slice(0, 16) + ' UTC'; }
 
   changeMode(value: string): void {
     this.invalidateResults();
-    this.state.mode = value === 'period' ? 'period' : 'timestep';
+    this.state.mode = value === 'arrival' ? 'arrival' : value === 'period' ? 'period' : 'timestep';
   }
 
   get startPercent(): number { return this.times.length > 1 ? 100 * this.state.startIndex / (this.times.length - 1) : 0; }
@@ -107,7 +112,7 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
     }
     // New map plots hide statistics; reflect actual visibility when reopening the panel.
     const visible = this.resultPlots().filter(plot => plot.visible);
-    this.state.agreement = visible.some(plot => plot.legendLayer === 'percentage agreement');
+    this.state.agreement = visible.some(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
     if (!this.state.agreement) this.state.hiddenIds = [];
     this.state.selected = visible.filter(plot => /^member \d+$/.test(plot.legendLayer)).map(plot => Number(plot.legendLayer.slice(7)));
     if (!this.state.selected.length) this.state.members = '';
@@ -139,8 +144,8 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
       this.state.hiddenIds = [];
       if (restored !== undefined) this.store.dispatch(new MapPlotAction.SetActive(restored));
     }
-    this.visibility(this.resultPlots().filter(plot => plot.legendLayer === 'percentage agreement'), checked);
-    const agreement = this.resultPlots().find(plot => plot.legendLayer === 'percentage agreement');
+    this.visibility(this.resultPlots().filter(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer)), checked);
+    const agreement = this.resultPlots().find(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
     if (checked && agreement) this.store.dispatch(new MapPlotAction.SetActive(agreement.id));
   }
 
@@ -174,26 +179,28 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
     this.state.calculatedThreshold = threshold;
     const indices: {[key: string]: number} = {};
     for (const key of ['Ti', 'height']) if (this.params[key]) indices[key] = this.params[key].index;
-    const period = this.state.mode === 'period';
+    const period = this.state.mode !== 'timestep';
+    const scope = this.state.mode === 'arrival' ? 'arrival' : this.state.mode === 'timestep' ? 'snapshot' : 'period';
+    const startIndex = scope === 'arrival' ? 0 : this.state.startIndex;
+    const endIndex = scope === 'arrival' ? this.times.length - 1 : this.state.endIndex;
     const params = {...this.params};
-    const description = period ? `At any time: ${this.formatTime(this.times[this.state.startIndex])} – ${this.formatTime(this.times[this.state.endIndex])}` : `At timestep: ${this.formatTime(this.timestep)}`;
+    const description = period ? `${scope === 'arrival' ? 'Arrival time' : 'At any time'}: ${this.formatTime(this.times[startIndex])} – ${this.formatTime(this.times[endIndex])}` : `At timestep: ${this.formatTime(this.timestep)}`;
     this.state.calculatedDescription = description;
     if (period) {
-      indices['Ti'] = this.state.startIndex + 1;
-      indices['TiEnd'] = this.state.endIndex + 1;
+      indices['Ti'] = startIndex + 1;
+      indices['TiEnd'] = endIndex + 1;
       params['Ti'] = {index: indices['Ti'], value: description};
     }
+    if (!period) indices['TiEnd'] = indices['Ti'];
     this.loading = true;
-    const calculation = period ? this.flexpart.getPeriodAgreement(this.outputId, this.layer, indices, threshold).pipe(
-      switchMap(result => this.store.dispatch(new MapPlotAction.AddPeriodAgreement(result, params, this.parentName, threshold, this.unit)))) :
-      this.flexpart.getEnsembleStats(this.outputId, this.layer, indices, threshold).pipe(
-        switchMap(result => this.store.dispatch(new MapPlotAction.AddStatsTiff(result, 'stats', [`percentage agreement (${threshold} ${this.unit})`], params, this.parentName))));
+    const calculation = this.flexpart.getPeriodAgreement(this.outputId, this.layer, indices, threshold, scope).pipe(
+      switchMap(result => this.store.dispatch(new MapPlotAction.AddPeriodAgreement(result, params, this.parentName, threshold, this.unit))));
     this.request = calculation.pipe(timeout(180000)).subscribe({
       next: () => {
         if (this.destroyed) return;
         this.loading = false;
         this.state.ready = true;
-        if (period) this.toggleAgreement(true);
+        this.toggleAgreement(true);
         this.cdr.markForCheck();
       },
       error: () => {

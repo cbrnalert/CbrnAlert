@@ -1,3 +1,4 @@
+import { MapExportControl } from './map-export-control';
 import { agreementReadout } from './agreement-readout';
 import { MapAction } from 'src/app/core/state/map.state';
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, Input } from '@angular/core';
@@ -47,7 +48,53 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
     } else this.map.pm.addControls();
   }
 
-  ngOnDestroy(): void { this.routeChanges?.unsubscribe(); }
+  private plotContextHandler?: (event: LeafletMouseEvent) => Promise<void>;
+  private opacityControl?: Control;
+  private exportControl?: MapExportControl;
+  private opacitySubscription?: Subscription;
+  private opacityVisibilitySubscription?: Subscription;
+
+  ngOnDestroy(): void {
+    this.routeChanges?.unsubscribe();
+    this.opacitySubscription?.unsubscribe();
+    this.opacityVisibilitySubscription?.unsubscribe();
+    this.opacityControl?.remove();
+    this.exportControl?.remove();
+  }
+
+  private addOpacityControl(map: LeafletMap): void {
+    const opacityControl = new Control({position: 'topleft'});
+    opacityControl.onAdd = () => {
+      const container = DomUtil.create('div', 'map-opacity-control');
+      this.opacityVisibilitySubscription = this.mapService.plottingStage$.subscribe(visible => {
+        container.style.display = visible ? 'flex' : 'none';
+        if (!visible) this.exportControl?.stopRecording();
+        map.getContainer().classList.toggle('plotting-controls-active',visible);
+      });
+      const label = DomUtil.create('label', '', container);
+      label.htmlFor = 'map-overlay-opacity';
+      label.textContent = 'Opacity';
+      const input = DomUtil.create('input', '', container) as HTMLInputElement;
+      input.id = 'map-overlay-opacity';
+      input.type = 'range'; input.min = '0'; input.max = '100'; input.step = '1';
+      input.setAttribute('aria-label', 'Map overlay opacity');
+      const value = DomUtil.create('output', '', container) as HTMLOutputElement;
+      value.setAttribute('for', input.id);
+      input.addEventListener('input', () => this.mapService.setOverlayOpacity(Number(input.value) / 100));
+      this.opacitySubscription = this.mapService.overlayOpacity$.subscribe(opacity => {
+        const percentage = Math.round(opacity * 100);
+        input.value = String(percentage);
+        input.style.setProperty('--opacity-fill',`${percentage}%`);
+        input.setAttribute('aria-valuetext', `${percentage}%`);
+        value.textContent = `${percentage}%`;
+      });
+      DomEvent.disableClickPropagation(container);
+      DomEvent.disableScrollPropagation(container);
+      DomEvent.on(container, 'keydown', DomEvent.stopPropagation);
+      return container;
+    };
+    this.opacityControl = opacityControl.addTo(map);
+  }
 
   map: LeafletMap;
   layer: FeatureGroup | TileLayer;
@@ -76,9 +123,9 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
 
   layersControl = {
     baseLayers: {
-      'ESRI Satellite Map': tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, detectRetina: true, attribution: 'Esri, USGS | Esri, TomTom, Garmin, FAO, NOAA, USGS | Earthstar Geographics' }),
-      'ESRI Topographic Map': tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, detectRetina: true, attribution: 'Esri, USGS | FOEN / Swiss Parks Network, swisstopo, Esri, TomTom, Garmin, FAO, NOAA, USGS | Esri, HERE, Garmin, FAO, NOAA, USGS' }),
-      'Open Street Map': tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, detectRetina: true, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' })
+      'ESRI Satellite Map': tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, detectRetina: true, crossOrigin: true, attribution: 'Esri, USGS | Esri, TomTom, Garmin, FAO, NOAA, USGS | Earthstar Geographics' }),
+      'ESRI Topographic Map': tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, detectRetina: true, crossOrigin: true, attribution: 'Esri, USGS | FOEN / Swiss Parks Network, swisstopo, Esri, TomTom, Garmin, FAO, NOAA, USGS | Esri, HERE, Garmin, FAO, NOAA, USGS' }),
+      'Open Street Map': tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, detectRetina: true, crossOrigin: true, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' })
     },
     overlays: {
       'Add boundaries & names': dynamicMapLayer({url: 'https://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer', opacity: 0.6, attribution: 'Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, GIS user community' }),
@@ -103,21 +150,28 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
     this.activePlot$.subscribe(plot => {
       if (!this.map || !plot) return;
       this.map.closePopup();
-      this.map.off('contextmenu');
+      if (this.plotContextHandler) this.map.off('contextmenu', this.plotContextHandler);
+      this.plotContextHandler = undefined;
       this.currentUnit = null;
-      if (plot.type == 'flexpart' || plot.legendLayer == "percentage agreement") {
+      if (plot.type == 'flexpart' || ["percentage agreement", "arrival time"].includes(plot.legendLayer)) {
         if (!this.currentUnit) {
           this.currentUnit = (/spec\d+_mr/.test(plot.legendLayer)) ? 'ng/m³' : (/D_spec/.test(plot.legendLayer)) ? 'ng/m²' : null;
         }
-        this.map.on('contextmenu', this.onRightClick(plot));
+        this.plotContextHandler = this.onRightClick(plot);
+        this.map.on('contextmenu', this.plotContextHandler);
       }
     });
+  }
+
+  arrivalHistogramPlot(plots: MapPlot[]): MapPlot | undefined {
+    if (!this.map || this.mapService.animationActive) return undefined;
+    return plots.find(plot => plot.visible && (plot.legendLayer === 'arrival time' || ['maximum','timestep'].includes(plot.agreementInfo?.analysis || '')));
   }
 
   legendPlots(plots: MapPlot[], active: MapPlot): MapPlot[] {
     const parentName = active.type === 'stats' ? active.name.split(' - ')[0] : active.name;
     const concentration = plots.find(p => p.type === 'flexpart' && p.name === parentName);
-    const agreement = plots.filter(p => p.visible && p.legendLayer === 'percentage agreement' &&
+    const agreement = plots.filter(p => p.visible && ['percentage agreement', 'arrival time'].includes(p.legendLayer) &&
       p.name.startsWith(`${parentName} - `));
     if (agreement.length) return agreement;
     return concentration ? (concentration.visible ? [concentration] : []) : (active.visible && active.metadata ? [active] : []);
@@ -126,6 +180,8 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
   onMapReady(map: LeafletMap) {
     this.mapService.leafletMap = map;
     this.map = map;
+    this.addOpacityControl(map);
+    this.exportControl = new MapExportControl().addTo(map);
     // Initial map settings at startup
     map.fitBounds(latLngBounds(latLng(57, -15), latLng(43, 33)));
     this.layersControl.baseLayers['ESRI Satellite Map'].addTo(map);
@@ -145,8 +201,8 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
       if (coordsDiv) {
         coordsDiv.innerText = `Lat: ${e.latlng.lat.toFixed(5)}, Lon: ${e.latlng.lng.toFixed(5)}`;
         if (!this.mapService.animationActive) {
-          const agreement = this.store.selectSnapshot(MapPlotState.mapPlots).find(plot => plot.visible && plot.legendLayer === 'percentage agreement');
-          if (agreement) coordsDiv.innerText += '\n' + agreementReadout(agreement, e.latlng.lng, e.latlng.lat);
+          const agreement = this.store.selectSnapshot(MapPlotState.mapPlots).find(plot => plot.visible && ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
+          if (agreement && !['arrival','maximum','timestep'].includes(agreement.agreementInfo?.analysis || '')) coordsDiv.innerText += '\n' + agreementReadout(agreement, e.latlng.lng, e.latlng.lat);
         }
       }
     });
@@ -372,6 +428,9 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
   private onRightClick = (plot: MapPlot) => async (e: LeafletMouseEvent) => {
     if (this.mapService.animationActive) return;
     const { lat, lng } = e.latlng;
+    if (plot.legendLayer === 'arrival time' || ['maximum','timestep'].includes(plot.agreementInfo?.analysis || '')) {
+      return;
+    }
     const georaster = plot.data;
     const column = Math.floor((lng - georaster.xmin) / georaster.pixelWidth);
     const row = Math.floor((georaster.ymax - lat) / georaster.pixelHeight);

@@ -58,3 +58,11 @@
   font-size: calc(0.058 * var(--legendBoxSize));
   white-space: nowrap;
 }
+
+.arrival-legend { width: 154px; box-sizing: border-box; padding: 24px 8px 6px; justify-content: flex-start; }
+.arrival-legend .legend-scale { margin: 0; height: 240px; }
+.arrival-legend .legend-scale i { width: 14px; }
+.arrival-legend .legend-ticks { left: 6px; top: 14px; font-size: 11px; }
+.arrival-legend .legend-ticks.max-tick { top: -6px; }
+.arrival-legend .unit-wrapper { position: absolute; top: 4px; left: 0; width: 100%; }
+.arrival-legend .unit { transform: none; font-size: 11px; }
