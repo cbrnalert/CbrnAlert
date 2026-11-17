@@ -1,3 +1,4 @@
+import { PeriodAgreement } from '../models/ensemble-agreement';
 import { MapPlotsService } from 'src/app/core/services/map-plots.service';
 import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State, StateContext } from '@ngxs/store';
@@ -7,6 +8,11 @@ import { Atp45Result, GeoJsonSliceResponse } from '../api/models';
 import { DRAFTABLE } from 'immer/dist/internal';
 
 export namespace MapPlotAction {
+  export class AddPeriodAgreement {
+    static readonly type = '[MapPlot] AddPeriodAgreement';
+    constructor(public result: PeriodAgreement, public selectedParams: ParameterEntry, public parentName: string, public threshold: number, public unit: string) {}
+  }
+
   export class Add {
     static readonly type = '[MapPlot] Add'
 
@@ -136,6 +142,45 @@ export class MapPlotState {
         draft.mapPlots.push(...statsPlots);
       }))
     });
+  }
+
+  @Action(MapPlotAction.AddPeriodAgreement)
+  addPeriodAgreement(ctx: StateContext<MapPlotStateModel>, action: MapPlotAction.AddPeriodAgreement) {
+    const r = action.result;
+    const plot = new MapPlot('stats');
+    const arrival = r.analysis === 'arrival';
+    plot.legendLayer = arrival ? 'arrival time' : 'percentage agreement';
+    plot.name = `${action.parentName} - ${plot.legendLayer} (${action.threshold} ${action.unit})`;
+    plot.visible = false;
+    plot.selectedParams = action.selectedParams;
+    plot.data = {values: [r.values.map(row => row.map(value => value === null ? -9999 : value))],
+      width: r.width, height: r.height, xmin: r.xmin, xmax: r.xmax, ymin: r.ymin, ymax: r.ymax,
+      pixelWidth: (r.xmax-r.xmin)/r.width, pixelHeight: (r.ymax-r.ymin)/r.height,
+      projection: 4326, noDataValue: -9999, numberOfRasters: 1, mins: [0], maxs: [100], ranges: [100]};
+    if (arrival) {
+      plot.data.values.push(r.counts, r.validCounts);
+      plot.data.numberOfRasters = 3;
+      plot.data.mins = [0, 0, 0]; plot.data.maxs = [Math.max(1e-9, (Date.parse(r.endTime) - Date.parse(r.startTime)) / 3600000), r.memberCount, r.memberCount]; plot.data.ranges = plot.data.maxs;
+    }
+    plot.metadata = arrival ? this.mapPlotService.arrivalColorbar(r.startTime, r.endTime) : this.mapPlotService._colorbarFromGeoRaster(plot.data, 'stats');
+    plot.agreementInfo = {analysis: r.analysis, maximumValues: r.maximumValues, concentrationValues: r.concentrationValues, threshold: action.threshold, unit: action.unit, startTime: r.startTime, arrivalLower: r.arrivalLower, arrivalUpper: r.arrivalUpper, arrivalCounts: r.arrivalCounts, arrivalHistogram: r.arrivalHistogram, arrivalTimes: r.arrivalTimes, memberCount: r.memberCount, counts: r.counts, validCounts: r.validCounts,
+      description: `${arrival ? 'Arrival time' : 'At any time'}: ${r.startTime} – ${r.endTime} · ≥ ${action.threshold} ${action.unit}`};
+    const plots = [plot];
+    for (const contour of r.memberContours || []) {
+      const member = new MapPlot('stats');
+      member.name = `${action.parentName} - member ${contour.member} (${action.threshold} ${action.unit})`;
+      member.legendLayer = `member ${contour.member}`;
+      member.visible = false;
+      member.selectedParams = action.selectedParams;
+      const mask = Array.from({length:r.height},()=>Array<number>(r.width).fill(0));
+      for (const cell of contour.cells) if (Number.isInteger(cell) && cell>=0 && cell<r.width*r.height) mask[Math.floor(cell/r.width)][cell%r.width]=1;
+      member.data = {...plot.data,values:[mask],numberOfRasters:1,mins:[0],maxs:[1],ranges:[1]};
+      plots.push(member);
+    }
+    ctx.setState(produce(draft => {
+      draft.mapPlots = draft.mapPlots.filter(p => p.type !== 'stats' || !p.name.startsWith(action.parentName + ' - '));
+      draft.mapPlots.push(...plots);
+    }));
   }
 
   @Action(MapPlotAction.Show)

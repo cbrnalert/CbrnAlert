@@ -11,86 +11,6 @@
   font-size: 12px;
 }
 
-::ng-deep .threshold-control {
-  padding: 0.5vw;
-  background-color: white;
-  border-radius: 0.1vw;
-  box-shadow: 0 0 0 0.1vw rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5vw;
-  font-size: 12px;
-  line-height: 1.5;
-  max-width: 300px;
-
-  label, input, button, .status-wrapper, .member-status {
-    font-size: inherit;
-    line-height: inherit;
-  }
-
-  .threshold-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.2vw;
-  
-    .threshold-input {
-      border: 0.05vw solid #ccc;
-      border-radius: 0.1vw;
-      padding: 0.1vw;
-      width: 3vw;
-    }
-  }
-
-  .calculate-btn {
-    background-color: #3f51b5;
-    color: white;
-    border: none;
-    border-radius: 0.2vw;
-    font-weight: 500;
-    padding: 0.3vw 0.3vw;
-    margin: 0.3vw;
-    cursor: pointer;
-  }
-
-  .calculate-btn:disabled {
-    background-color: rgba(0, 0, 0, 0.12);
-    color: rgba(0, 0, 0, 0.38);
-    cursor: default;
-    box-shadow: none;
-  }
-
-  .toggle-checkboxes-btn {
-    padding: 0.1vw 0.1vw;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-  }
-
-  .checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    margin-top: 0.3vw;
-  }
-
-  .status-wrapper {
-    display: flex;
-    justify-content: center;
-  }
-
-  .spinner {
-    width: 1vw;
-    height: 1vw;
-    border: 0.2vw solid #ccc;
-    border-top: 0.2vw solid #3f51b5;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-}
 .map-legends {
   position: absolute;
   bottom: calc(0.15 * var(--legendBoxSize));
@@ -101,8 +21,41 @@
   z-index: 1000;
 }
 
-::ng-deep .threshold-control {
-  .member-label { display: flex; flex-direction: column; margin-top: 8px; }
-  .member-input { border: 1px solid #ccc; padding: 4px; width: 100%; }
-  .member-status { color: #b00020; }
+::ng-deep .leaflet-top.leaflet-right { display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 8px; }
+::ng-deep .leaflet-top.leaflet-right .leaflet-control-layers { order: 0; }
+::ng-deep .map-opacity-control { order: 1; display: flex; align-items: center; gap: 7px; padding: 6px 8px; background: white; border-radius: 4px; box-shadow: 0 1px 5px #0005; color: #374151; font-size: 12px; margin-right: 0 !important; }
+::ng-deep .map-opacity-control input { width: 100px; margin: 0; accent-color: #4353b8; cursor: pointer; }
+::ng-deep .map-opacity-control output { min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+@media(max-width: 600px) { ::ng-deep .map-opacity-control { gap: 5px; padding: 7px; } ::ng-deep .map-opacity-control input { width: 65px; } }
+
+::ng-deep .leaflet-touch .map-plot-actions { --map-tool-size:44px; }
+::ng-deep .map-plot-actions { order:1;align-items:center;padding:2px;background:white;border-radius:4px;box-shadow:0 1px 5px #0005;margin-right:0 !important; }
+::ng-deep .plotting-controls-active .leaflet-top.leaflet-left { display:flex;align-items:flex-start;gap:8px; }
+::ng-deep .plotting-controls-active .leaflet-control-zoom { order:0; }
+::ng-deep .map-opacity-control { margin-left:0 !important; }
+::ng-deep .map-opacity-control input { appearance:none;-webkit-appearance:none;height:20px;background:transparent; }
+::ng-deep .map-opacity-control input::-webkit-slider-runnable-track { height:3px;border-radius:2px;background:linear-gradient(to right,#4353b8 var(--opacity-fill,80%),#d1d5db var(--opacity-fill,80%)); }
+::ng-deep .map-opacity-control input::-webkit-slider-thumb { appearance:none;-webkit-appearance:none;width:11px;height:11px;margin-top:-4px;border:0;border-radius:50%;background:#4353b8; }
+::ng-deep .map-opacity-control input::-moz-range-track { height:3px;border:0;border-radius:2px;background:#d1d5db; }
+::ng-deep .map-opacity-control input::-moz-range-progress { height:3px;border-radius:2px;background:#4353b8; }
+::ng-deep .map-opacity-control input::-moz-range-thumb { width:11px;height:11px;border:0;border-radius:50%;background:#4353b8; }
+
+::ng-deep .map-export-control {
+  display: none;
+  position: absolute;
+  top: 74px;
+  left: 0;
+  background: white;
+  button { display: block; width: 32px; height: 34px; padding: 0; border: 0; background: white; color: #4353b8; cursor: pointer; }
+  button + button { border-top: 1px solid #ddd; }
+  button:hover { background: #f3f4f6; }
+  button:disabled { color: #aaa; cursor: wait; }
+  button.recording { color: #dc2626; }
+  .material-icons { font-size: 23px; vertical-align: middle; }
+}
+::ng-deep .plotting-controls-active .map-export-control { display: block; }
+::ng-deep .map-export-status {
+  position: absolute; left: 40px; top: 0; width: max-content; max-width: 240px;
+  padding: 5px 8px; background: white; border-radius: 4px; font-size: 12px; box-shadow: 0 1px 5px #0005;
+  &:empty { display: none; }
 }

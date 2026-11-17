@@ -1,3 +1,4 @@
+import { MapService } from 'src/app/core/services/map.service';
 import { Select, Store } from '@ngxs/store';
 import { Component, OnInit, ChangeDetectionStrategy, Input, OnDestroy } from '@angular/core';
 import { Feature, FeatureCollection } from 'geojson';
@@ -6,7 +7,7 @@ import { ColorbarData } from 'src/app/core/api/models';
 import { MapPlot } from 'src/app/core/models/map-plot';
 import { MapPlotsService } from 'src/app/core/services/map-plots.service';
 import { MapPlotState, MapPlotAction } from 'src/app/core/state/map-plot.state';
-import { Observable, Subscription, combineLatestWith  } from 'rxjs';
+import { Observable, Subscription, combineLatest  } from 'rxjs';
 
 @Component({
   selector: 'app-plot-layer',
@@ -29,11 +30,12 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
 
   constructor(
     public mapPlotsService: MapPlotsService,
-    public store: Store
+    public store: Store,
+    private mapService: MapService
     ) {}
 
   private isContourPlot(plot: MapPlot): boolean {
-    return plot.type === 'stats' && plot.legendLayer !== 'percentage agreement';
+    return plot.type === 'stats' && !['percentage agreement', 'arrival time'].includes(plot.legendLayer);
   }
 
   ngOnInit(): void {
@@ -41,37 +43,20 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
       if (this.mapPlot.geojson !== undefined) {
         this.layer = this.mapPlotsService.flexpartPlotToLayer(this.mapPlot.geojson as FeatureCollection);
         this.mapPlotsService.setColors(this.layer as LayerGroup, this.mapPlot.metadata as ColorbarData);
-        this.layer.setStyle({ opacity: 0.2 });
-
-        this.sub = this.activePlot$.subscribe(plot => {
-          if (plot !== undefined) {
-            const layer = this.layer as FeatureGroup
-            if (this.mapPlot.id == plot.id) {
-              layer.setStyle({ opacity: 0.6 });
-            }
-          }
+        this.sub = combineLatest([this.activePlot$, this.mapService.overlayOpacity$]).subscribe(([, opacity]) => {
+          (this.layer as FeatureGroup).setStyle({opacity, fillOpacity: opacity});
         });
       } else {
-        if (this.mapPlot.type == 'flexpart' || this.mapPlot.legendLayer == "percentage agreement") {
-          this.layer = this.mapPlotsService.addTiff(this.mapPlot.data, this.mapPlot.metadata as ColorbarData) as unknown as TileLayer;
+        if (this.mapPlot.type == 'flexpart' || ["percentage agreement", "arrival time"].includes(this.mapPlot.legendLayer)) {
+          this.layer = this.mapPlotsService.addTiff(this.mapPlot.data, this.mapPlot.metadata as ColorbarData, this.mapPlot.legendLayer === 'arrival time') as unknown as TileLayer;
         } else {
           this.layer = this.mapPlotsService.addTiffMask(this.mapPlot.data) as unknown as TileLayer;
-          this.layer.setOpacity(0.6);
           this.layer.setZIndex(1500);
         }
-        this.sub = this.activePlot$.subscribe(plot => {
-          if (plot !== undefined) {
-            const layer = this.layer as TileLayer;
-            if (this.mapPlot.id == plot.id) {
-              layer.setOpacity(0.6);
-              layer.setZIndex(1000);
-            } else {
-              if (!this.isContourPlot(this.mapPlot)) {
-                layer.setOpacity(this.mapPlot.legendLayer === 'percentage agreement' ? 0.6 : 0.2);
-                layer.setZIndex(500);
-              }
-            }
-          }
+        this.sub = combineLatest([this.activePlot$, this.mapService.overlayOpacity$]).subscribe(([plot, opacity]) => {
+          const layer = this.layer as TileLayer;
+          layer.setOpacity(opacity);
+          layer.setZIndex(this.isContourPlot(this.mapPlot) ? 1500 : (plot?.id === this.mapPlot.id ? 1000 : 500));
         });
       }
 
@@ -91,6 +76,6 @@ export class PlotLayerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.sub.unsubscribe();
+    this.sub?.unsubscribe();
   }
 }

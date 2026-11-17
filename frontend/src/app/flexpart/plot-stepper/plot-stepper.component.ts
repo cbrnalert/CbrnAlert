@@ -1,6 +1,7 @@
+import { MapService } from 'src/app/core/services/map.service';
 import { FlexpartService } from 'src/app/flexpart/flexpart.service';
 import { SliceResponseType } from './../flexpart-plot-data';
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef  } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef  } from '@angular/core';
 import { MapPlotsService } from 'src/app/core/services/map-plots.service';
 
 @Component({
@@ -9,7 +10,7 @@ import { MapPlotsService } from 'src/app/core/services/map-plots.service';
   styleUrls: ['./plot-stepper.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PlotStepperComponent implements OnInit {
+export class PlotStepperComponent implements OnInit, OnDestroy {
 
   selectedRunId: string
   selectedOutputId: string
@@ -20,12 +21,14 @@ export class PlotStepperComponent implements OnInit {
   constructor(
     private flexpartService: FlexpartService,
     private mapPlotsService: MapPlotsService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private mapService: MapService
   ) {
   }
 
-  ngOnInit(): void {
-  }
+  ngOnInit(): void { this.mapService.setPlottingStage(false); }
+
+  ngOnDestroy(): void { this.mapService.setPlottingStage(false); }
 
   selectType(val: SliceResponseType) {
     this.flexpartService.selectedSliceType = val;
@@ -35,7 +38,7 @@ export class PlotStepperComponent implements OnInit {
     return this.flexpartService.selectedSliceType;
   }
 
-  selectionChanged(e: any) { }
+  selectionChanged(e: {selectedIndex: number}): void { this.mapService.setPlottingStage(e.selectedIndex === 3); }
 
   onLayerSelectedEvent(event: { value: string; label: string }) {
     this.selectedLayer = event;

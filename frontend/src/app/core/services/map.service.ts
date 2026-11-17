@@ -13,6 +13,15 @@ type MapEvent = 'newMarker' | 'areaSelection'
 export class MapService {
 
     animationActive = false;
+    private readonly plottingStageSubject = new BehaviorSubject<boolean>(false);
+    readonly plottingStage$ = this.plottingStageSubject.asObservable();
+    setPlottingStage(visible: boolean): void { this.plottingStageSubject.next(visible); }
+    private readonly overlayOpacitySubject = new BehaviorSubject<number>(0.8);
+    readonly overlayOpacity$ = this.overlayOpacitySubject.asObservable();
+    get overlayOpacity(): number { return this.overlayOpacitySubject.value; }
+    setOverlayOpacity(value: number): void {
+      if (Number.isFinite(value)) this.overlayOpacitySubject.next(Math.max(0, Math.min(1, value)));
+    }
 
     selectionRectangle?: Rectangle    // refers to area being selected by user
     selectionMarker?: Marker

@@ -1,9 +1,11 @@
+import { Control, DomEvent, DomUtil } from 'leaflet';
+import { MapService } from 'src/app/core/services/map.service';
 import { MapPlotAction } from 'src/app/core/state/map-plot.state';
 import { GeoJsonSliceResponse } from './../../../core/api/models/geo-json-slice-response';
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { AfterViewInit, Component, EmbeddedViewRef, Input, OnChanges, OnDestroy, SimpleChanges, TemplateRef, ViewChild, ViewContainerRef } from '@angular/core';
 import { UntypedFormGroup, FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Observable, of } from 'rxjs';
+import { Observable, Subscription, of } from 'rxjs';
 import { DropdownQuestion } from 'src/app/shared/form/dropdown-question';
 import { QuestionBase } from 'src/app/shared/form/question-base';
 import { FlexpartService } from '../../flexpart.service';
@@ -16,7 +18,12 @@ import { SliceResponseType } from 'src/app/flexpart/flexpart-plot-data';
   templateUrl: './dimensions-form.component.html',
   styleUrls: ['./dimensions-form.component.scss'],
 })
-export class DimensionsFormComponent implements OnChanges {
+export class DimensionsFormComponent implements OnChanges, AfterViewInit, OnDestroy {
+  @ViewChild('mapActions', {static:true}) mapActions: TemplateRef<unknown>;
+  private mapActionsControl?: Control;
+  private mapActionsView?: EmbeddedViewRef<unknown>;
+  private mapActionsVisibility?: Subscription;
+
 
   @Input() runId: string
   @Input() outputId: string
@@ -27,6 +34,7 @@ export class DimensionsFormComponent implements OnChanges {
   isLoading = true;
   ensembleVisible = false;
   animationVisible = false;
+  analysisVisible = false;
   get isEnsemble(): boolean {
     return !!this.flexpartService.runsSubject.value.find(run => run.uuid === this.runId)?.ensemble;
   }
@@ -39,14 +47,46 @@ export class DimensionsFormComponent implements OnChanges {
   constructor(
     private route: ActivatedRoute,
     private flexpartService: FlexpartService,
-    private store: Store
+    private store: Store,
+    private mapService: MapService,
+    private viewContainer: ViewContainerRef
   ) {
     this.formGroup = new UntypedFormGroup({});
   }
 
+  ngAfterViewInit(): void {
+    const map = this.mapService.leafletMap;
+    if (!map) return;
+    const control = new Control({position:'topright'});
+    control.onAdd = () => {
+      const container = DomUtil.create('div','map-plot-actions');
+      container.setAttribute('role','toolbar');
+      container.setAttribute('aria-label','Plot tools');
+      this.mapActionsView = this.viewContainer.createEmbeddedView(this.mapActions);
+      this.mapActionsView.rootNodes.forEach(node=>container.appendChild(node));
+      this.mapActionsView.detectChanges();
+      this.mapActionsVisibility = this.mapService.plottingStage$.subscribe(visible=>{
+        container.style.display = visible ? 'flex' : 'none';
+      });
+      DomEvent.disableClickPropagation(container);
+      DomEvent.disableScrollPropagation(container);
+      DomEvent.on(container,'keydown',DomEvent.stopPropagation);
+      return container;
+    };
+    control.onRemove = () => {
+      this.mapActionsVisibility?.unsubscribe();
+      this.mapActionsView?.destroy();
+      this.mapActionsView = undefined;
+    };
+    this.mapActionsControl = control.addTo(map);
+  }
+
+  ngOnDestroy(): void { this.mapActionsControl?.remove(); }
+
   ngOnChanges(changes: SimpleChanges): void {
     this.ensembleVisible = false;
     this.animationVisible = false;
+    this.analysisVisible = false;
     const newOutId = changes["outputId"] ? changes["outputId"].currentValue : this.outputId;
     let newLayer: string | undefined;
     if (changes["layerName"] && changes["layerName"].currentValue) {
@@ -74,6 +114,7 @@ export class DimensionsFormComponent implements OnChanges {
 
   onSubmit() {
     this.animationVisible = false;
+    this.analysisVisible = false;
     const outputId = this.outputId;
     const layerName = this.layerName.value;
     const toGeoJSON = this.responseFormat == SliceResponseType.GEOJSON

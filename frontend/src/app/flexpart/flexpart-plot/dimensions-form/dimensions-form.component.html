@@ -2,11 +2,11 @@
     <form *ngIf="questions.length !== 0" [formGroup]="formGroup" (ngSubmit)="onSubmit()" style="display: flex; align-items: center; gap: 2vw; flex-wrap: wrap;">
         <app-dyn-form [questions]="questions" [parentForm]="formGroup" formName="dimensions"></app-dyn-form>
         <button class="plot-button" mat-raised-button color="primary" type="submit" [disabled]="!formGroup.valid">Map plot</button>
-        <button class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid"
-            (click)="animationVisible = false; ensembleVisible = !ensembleVisible">Time series plot</button>
-        <button class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid || !dims['Ti'] || dims['Ti'].length === 0"
-            (click)="ensembleVisible = false; animationVisible = !animationVisible">Animation</button>
+        <button *ngIf="isEnsemble" class="plot-button" mat-raised-button color="primary" type="button" [disabled]="!formGroup.valid"
+            (click)="ensembleVisible = false; animationVisible = false; analysisVisible = !analysisVisible">Ensemble analysis</button>
     </form>
+    <app-ensemble-analysis *ngIf="analysisVisible" [outputId]="outputId" [layer]="layerName.value" [substance]="layerName.label"
+        [dimensions]="formGroup.value.dimensions" [availableDimensions]="dims" (closed)="analysisVisible = false"></app-ensemble-analysis>
     <app-flexpart-animation *ngIf="animationVisible" [outputId]="outputId" [layer]="layerName.value"
         [dimensions]="formGroup.value.dimensions" [timesteps]="$any(dims['Ti'])" (closed)="animationVisible = false"></app-flexpart-animation>
     <app-ensemble-plot *ngIf="ensembleVisible" [isEnsemble]="isEnsemble" [outputId]="outputId" [layer]="layerName.value"
@@ -18,3 +18,15 @@
         <mat-spinner diameter="24"></mat-spinner>
     </div>
 </ng-container>
+<ng-template #mapActions>
+  <button class="map-plot-icon" mat-icon-button color="primary" type="button" aria-label="Time series plot" matTooltip="Time series plot"
+      [attr.aria-pressed]="ensembleVisible" [class.is-selected]="ensembleVisible" [disabled]="isLoading || !formGroup.valid"
+      (click)="analysisVisible = false; animationVisible = false; ensembleVisible = !ensembleVisible">
+    <mat-icon>show_chart</mat-icon>
+  </button>
+  <button class="map-plot-icon" mat-icon-button color="primary" type="button" aria-label="Animation" matTooltip="Animation"
+      [attr.aria-pressed]="animationVisible" [class.is-selected]="animationVisible" [disabled]="isLoading || !formGroup.valid || !dims['Ti'] || dims['Ti'].length === 0"
+      (click)="analysisVisible = false; ensembleVisible = false; animationVisible = !animationVisible">
+    <mat-icon>play_circle_outline</mat-icon>
+  </button>
+</ng-template>

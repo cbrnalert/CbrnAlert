@@ -125,6 +125,7 @@ export class MapPlotsService {
       newPlot.legendLayer = plotName.split(' (')[0]; // remove the threshold value for legendLayer
       newPlot.name = newPlot.name + " - " + plotName;
       if (newPlot.legendLayer === "percentage agreement") {
+        newPlot.agreementInfo = {memberCount: geoRasterStats.values.length - 2, description: `At timestep ${selectedParams['Ti']?.value}`};
         newPlot.metadata = this._colorbarFromGeoRaster(geoRaster, type);
         newPlot.selectedParams = selectedParams;
       }
@@ -133,7 +134,7 @@ export class MapPlotsService {
     return statsPlots
   }
 
-  addTiff(geoRaster: any, colorbar: ColorbarData) {
+  addTiff(geoRaster: any, colorbar: ColorbarData, arrival = false) {
     // inspired from https://github.com/GeoTIFF/georaster-layer-for-leaflet-example/blob/master/examples/color-scale.html
     const ticks = colorbar.ticks;
     const colors = colorbar.colors!;
@@ -146,10 +147,13 @@ export class MapPlotsService {
       georaster: geoRaster,
       pixelValuesToColorFn: pixelValues => {
         let pixelValue = pixelValues[0] * activity;
-        if (pixelValue <= ticks[0]) return "";
+        if (arrival && (pixelValues[0] == null || !Number.isFinite(pixelValue) || pixelValue === null || pixelValue < 0)) {
+          return pixelValues[2] > 0 && pixelValues[1] === 0 ? 'rgba(128,128,128,0.18)' : '';
+        }
+        if (pixelValue < ticks[0] || (!arrival && pixelValue === ticks[0])) return "";
         let colorIndex: number;
         for (let i = 0; i < colors.length; i++) {
-          if (ticks[i] < pixelValue && pixelValue <= ticks[i+1]) {
+          if ((ticks[i] < pixelValue || (arrival && i === 0 && pixelValue === ticks[0])) && pixelValue <= ticks[i+1]) {
             colorIndex = i;
             break;
           }
@@ -178,6 +182,13 @@ export class MapPlotsService {
     });
 
     return imageryLayer as typeof GeoRasterLayer;
+  }
+
+  arrivalColorbar(start: string, end: string): ColorbarData {
+    const hours = Math.max(1e-9, (Date.parse(end) - Date.parse(start)) / 3600000);
+    const ticks = Array.from({length: 13}, (_, i) => hours * i / 12);
+    const scale = chroma.scale(['#2166ac', '#67a9cf', '#ffffbf', '#fdae61', '#b2182b']).domain([0, hours]);
+    return {ticks, colors: ticks.slice(1).map((value, i) => scale((ticks[i] + value) / 2).hex())};
   }
 
   _colorScaleConc() {

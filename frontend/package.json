@@ -45,6 +45,7 @@
     "geojson": "^0.5.0",
     "georaster": "^1.5.6",
     "georaster-layer-for-leaflet": "^3.10.0",
+    "html2canvas": "^1.4.1",
     "immer": "^9.0.6",
     "leaflet": "^1.8.0",
     "leaflet-draw": "^1.0.4",

@@ -1104,7 +1104,7 @@ paths:
     post:
       tags:
         - Flexpart
-      description: 'Return ensemble statistics of the plotted `output`, based on layer, dimensions and input threshold value.'
+      description: Return ensemble threshold statistics. Timestep scope returns TIFF agreement/member contours. Period scope returns a full-domain JSON grid counting each member at most once where concentration is greater than or equal to threshold at any output time in the inclusive selected period. The ensemble mean is excluded.
       parameters:
         - $ref: '#/components/parameters/outputIdParam'
         - in: query
@@ -1113,6 +1113,13 @@ paths:
           schema:
             type: string
           description: Name of the plotted layer
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [timestep, period, arrival, snapshot]
+            default: timestep
+          description: Timestep returns the legacy TIFF. Snapshot returns selected-time concentration distributions, agreement and sparse member contours as JSON (TiEnd must equal Ti). Period analyzes any exceedance in a period; arrival analyzes first arrival. Arrival scope returns median and P10/P90 elapsed hours from startTime among members with known first arrivals.
 
       requestBody:
         required: true
@@ -1128,15 +1135,119 @@ paths:
                   type: object
                   additionalProperties:
                     type: integer
-                  description: Indices of selected dimensions (time and height)
+                  description: One-based dimension indices. Ti is the first or single timestep, height is optional, and period/arrival scopes additionally require TiEnd (inclusive).
                 threshold:
                   type: number
                   description: Threshold value used to calculate stats (ensemble agreement and individual masks)
 
       responses:
         '200':
-          description: OK
+          description: TIFF for timestep scope, JSON for snapshot/period/arrival scopes. Unknown non-exceeding members with incomplete period data are excluded from the valid denominator.
           content:
+            application/json:
+              schema:
+                type: object
+                required: [values, counts, validCounts, memberCount, width, height, xmin, xmax, ymin, ymax, startTime, endTime]
+                properties:
+                  values:
+                    type: array
+                    description: Row-major percentages (period) or median arrival hours from startTime (arrival), north to south and west to east; null where unavailable.
+                    items:
+                      type: array
+                      items:
+                        type: number
+                        nullable: true
+                  analysis:
+                    type: string
+                    enum: [arrival, maximum, timestep]
+                    description: Identifies arrival-time or maximum-concentration histogram metadata.
+                  concentrationValues:
+                    type: array
+                    description: Selected-time concentration frequencies for snapshot scope, in north-to-south row order; each cell contains [concentration, member count] pairs. Missing values are excluded, zero values retained.
+                    items:
+                      type: array
+                      items:
+                        type: array
+                        items:
+                          type: array
+                          minItems: 2
+                          maxItems: 2
+                          items: {type: number}
+                  memberContours:
+                    type: array
+                    description: Snapshot member threshold boundaries, preserving member numbers. Cells are zero-based flattened row-major indices in the returned grid.
+                    items:
+                      type: object
+                      properties:
+                        member: {type: integer}
+                        cells:
+                          type: array
+                          items: {type: integer}
+                  maximumValues:
+                    type: array
+                    description: Exact maximum-concentration frequencies for complete member histories in period scope. Same row/column order as values; each cell contains [maximum concentration, member count] pairs. Missing or incomplete members are excluded; zero maxima are retained.
+                    items:
+                      type: array
+                      items:
+                        type: array
+                        items:
+                          type: array
+                          minItems: 2
+                          maxItems: 2
+                          items: {type: number}
+                  arrivalTimes:
+                    type: array
+                    description: Saved output times for arrival histogram bins, in chronological order.
+                    items: {type: string, format: date-time}
+                  arrivalHistogram:
+                    type: array
+                    description: Sparse histogram per grid cell in the same north-to-south row order as values. Each cell contains pairs [zero-based arrivalTimes index, member count]. Counts include known first arrivals only and sum to arrivalCounts. Empty cells contain an empty list.
+                    items:
+                      type: array
+                      items:
+                        type: array
+                        items:
+                          type: array
+                          minItems: 2
+                          maxItems: 2
+                          items: {type: integer}
+                  arrivalLower:
+                    type: array
+                    description: P10 arrival hours from startTime; arrival scope only.
+                    items:
+                      type: array
+                      items: {type: number, nullable: true}
+                  arrivalUpper:
+                    type: array
+                    description: P90 arrival hours from startTime; arrival scope only.
+                    items:
+                      type: array
+                      items: {type: number, nullable: true}
+                  arrivalCounts:
+                    type: array
+                    description: Members with a known first arrival. Members with missing outputs before first observed exceedance are excluded from arrival quantiles, but remain in exceedance counts.
+                    items:
+                      type: array
+                      items: {type: integer}
+                  counts:
+                    type: array
+                    items:
+                      type: array
+                      items: {type: integer}
+                  validCounts:
+                    type: array
+                    items:
+                      type: array
+                      items: {type: integer}
+                  memberCount: {type: integer}
+                  width: {type: integer}
+                  height: {type: integer}
+                  xmin: {type: number}
+                  xmax: {type: number}
+                  ymin: {type: number}
+                  ymax: {type: number}
+                  startTime: {type: string, format: date-time}
+                  endTime: {type: string, format: date-time}
             image/tiff:
               schema:
                 type: string

@@ -10,3 +10,7 @@
   --mdc-protected-button-container-color: #4353b8;
   --mdc-protected-button-label-text-color: white;
 }
+
+.map-plot-icon { width:var(--map-tool-size,36px);height:var(--map-tool-size,36px);line-height:var(--map-tool-size,36px); }
+.map-plot-icon mat-icon { width:30px;height:30px;font-size:30px; }
+.map-plot-icon.is-selected { background:#e8eaf6; }

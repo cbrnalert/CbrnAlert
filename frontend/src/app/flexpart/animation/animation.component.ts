@@ -69,6 +69,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
   });
   private rasters: any[] = [];
   private currentLayer?: TileLayer;
+  private opacitySubscription?: Subscription;
   private pendingLayer?: TileLayer;
   private pendingIndex?: number;
   private locationMarker?: Marker;
@@ -118,12 +119,12 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
     DomEvent.disableScrollPropagation(this.dock);
     mapElement.classList.add('animation-active');
     this.mapService.animationActive = true;
+    this.opacitySubscription = this.mapService.overlayOpacity$.subscribe(opacity => this.currentLayer?.setOpacity(opacity));
     map.closePopup();
     const pane = map.getPane('flexpart-animation') || map.createPane('flexpart-animation');
     pane.style.zIndex = '450';
     this.observer = new ResizeObserver(() => {
       if (this.destroyed || !this.dock) return;
-      mapElement.style.setProperty('--animation-dock-height', `${this.dock.offsetHeight}px`);
       if (this.plotly && this.chartInitialized && this.chart) void this.plotly.Plots.resize(this.chart);
     });
     this.observer.observe(this.dock);
@@ -250,7 +251,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.currentLayer = layer;
       this.pendingLayer = undefined;
       this.pendingIndex = undefined;
-      layer.setOpacity(0.8);
+      layer.setOpacity(this.mapService.overlayOpacity);
       this.currentIndex = index;
       this.frameLoading = false;
       this.moveCursor();
@@ -453,6 +454,7 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     this.stopResize();
+    this.opacitySubscription?.unsubscribe();
     this.frameRequest?.unsubscribe();
     this.seriesRequest?.unsubscribe();
     this.coordinateChanges.unsubscribe();
@@ -470,7 +472,6 @@ export class AnimationComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.legend?.remove();
     const element = this.mapService.leafletMap?.getContainer();
     element?.classList.remove('animation-active');
-    element?.style.removeProperty('--animation-dock-height');
     this.mapService.leafletMap?.invalidateSize({pan: false});
     this.mapService.animationActive = false;
     if (this.initialMapView) this.mapService.leafletMap.setView(this.initialMapView.center, this.initialMapView.zoom, {animate: false});
