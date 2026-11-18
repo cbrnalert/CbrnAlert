@@ -8,7 +8,7 @@ import { MapPlotAction, MapPlotState } from 'src/app/core/state/map-plot.state';
 import { MapPlot, ParameterEntry } from 'src/app/core/models/map-plot';
 
 interface AnalysisState {
-  mode: 'timestep' | 'period' | 'arrival'; startIndex: number; endIndex: number; calculatedDescription?: string;
+  mode: 'timestep' | 'period' | 'arrival' | 'duration'; startIndex: number; endIndex: number; calculatedDescription?: string;
   parentName: string; threshold: string; calculatedThreshold?: number; ready: boolean;
   agreement: boolean; members: string; selected: number[]; hiddenIds: number[];
 }
@@ -53,14 +53,14 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
   get validPeriod(): boolean {
     if (this.state.mode === 'timestep') return true;
     if (!this.times.length) return false;
-    if (this.state.mode === 'arrival') return true;
+    if (['arrival', 'duration'].includes(this.state.mode)) return true;
     return this.state.startIndex >= 0 && this.state.endIndex < this.times.length && this.state.startIndex <= this.state.endIndex;
   }
   formatTime(time: string | number): string { return String(time).replace('T', ' ').slice(0, 16) + ' UTC'; }
 
   changeMode(value: string): void {
     this.invalidateResults();
-    this.state.mode = value === 'arrival' ? 'arrival' : value === 'period' ? 'period' : 'timestep';
+    this.state.mode = value === 'duration' ? 'duration' : value === 'arrival' ? 'arrival' : value === 'period' ? 'period' : 'timestep';
   }
 
   get startPercent(): number { return this.times.length > 1 ? 100 * this.state.startIndex / (this.times.length - 1) : 0; }
@@ -111,8 +111,10 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
       other.selected = [];
     }
     // New map plots hide statistics; reflect actual visibility when reopening the panel.
-    const visible = this.resultPlots().filter(plot => plot.visible);
-    this.state.agreement = visible.some(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
+    const results = this.resultPlots();
+    if (!results.length) this.state.ready = false;
+    const visible = results.filter(plot => plot.visible);
+    this.state.agreement = visible.some(plot => ['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer));
     if (!this.state.agreement) this.state.hiddenIds = [];
     this.state.selected = visible.filter(plot => /^member \d+$/.test(plot.legendLayer)).map(plot => Number(plot.legendLayer.slice(7)));
     if (!this.state.selected.length) this.state.members = '';
@@ -144,8 +146,8 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
       this.state.hiddenIds = [];
       if (restored !== undefined) this.store.dispatch(new MapPlotAction.SetActive(restored));
     }
-    this.visibility(this.resultPlots().filter(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer)), checked);
-    const agreement = this.resultPlots().find(plot => ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
+    this.visibility(this.resultPlots().filter(plot => ['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer)), checked);
+    const agreement = this.resultPlots().find(plot => ['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer));
     if (checked && agreement) this.store.dispatch(new MapPlotAction.SetActive(agreement.id));
   }
 
@@ -180,11 +182,12 @@ export class EnsembleAnalysisComponent implements AfterViewInit, OnChanges, OnDe
     const indices: {[key: string]: number} = {};
     for (const key of ['Ti', 'height']) if (this.params[key]) indices[key] = this.params[key].index;
     const period = this.state.mode !== 'timestep';
-    const scope = this.state.mode === 'arrival' ? 'arrival' : this.state.mode === 'timestep' ? 'snapshot' : 'period';
-    const startIndex = scope === 'arrival' ? 0 : this.state.startIndex;
-    const endIndex = scope === 'arrival' ? this.times.length - 1 : this.state.endIndex;
+    const scope = this.state.mode === 'duration' ? 'duration' : this.state.mode === 'arrival' ? 'arrival' : this.state.mode === 'timestep' ? 'snapshot' : 'period';
+    const fullPeriod = scope === 'arrival' || scope === 'duration';
+    const startIndex = fullPeriod ? 0 : this.state.startIndex;
+    const endIndex = fullPeriod ? this.times.length - 1 : this.state.endIndex;
     const params = {...this.params};
-    const description = period ? `${scope === 'arrival' ? 'Arrival time' : 'At any time'}: ${this.formatTime(this.times[startIndex])} – ${this.formatTime(this.times[endIndex])}` : `At timestep: ${this.formatTime(this.timestep)}`;
+    const description = scope === 'duration' ? 'Duration above threshold · full simulation' : period ? `${scope === 'arrival' ? 'Arrival time' : 'At any time'}: ${this.formatTime(this.times[startIndex])} – ${this.formatTime(this.times[endIndex])}` : `At timestep: ${this.formatTime(this.timestep)}`;
     this.state.calculatedDescription = description;
     if (period) {
       indices['Ti'] = startIndex + 1;

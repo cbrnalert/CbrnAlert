@@ -12,6 +12,13 @@
           aria-label="Analysis information" [attr.aria-expanded]="informationVisible" aria-controls="analysis-information" title="About this analysis">i</button>
       </div>
       <div id="analysis-information" class="analysis-information" [hidden]="!informationVisible">
+        <ng-container *ngIf="state.mode === 'duration'">
+          <p>Total estimated hours with concentration ≥ threshold over the full simulation. The map shows the median across members, including zero durations.</p>
+          <div class="formula" role="math" aria-label="Member duration is the sum of output interval hours whose concentration reaches the threshold. The map shows median duration across complete members.">D<sub>m</sub>(x) = Σ<sub>i</sub> Δt<sub>i</sub> 𝟙[C<sub>m</sub>(x,t<sub>i</sub>) ≥ τ]<br>D(x) = median<sub>m</sub> D<sub>m</sub>(x)</div>
+          <p>Each saved output represents the preceding interval. Separate episodes are added together. The first interval starts at the simulation start when available; otherwise, at the first saved output. Members with missing outputs are excluded.</p>
+          <p>Move over the map for member durations with P10, median and P90. Click to pin. Duration is estimated at saved-output resolution; percentile interpolation does not increase model resolution.</p>
+        </ng-container>
+        <ng-container *ngIf="state.mode !== 'duration'">
         <ng-container *ngIf="state.mode === 'arrival'; else exceedanceInformation">
           <p>Median first output time with concentration ≥ threshold among members with a known first arrival over the full simulation. T includes all saved output times.</p>
           <div class="formula" role="math" aria-label="First arrival is the earliest saved output time reaching the threshold; the map shows the median across known member arrivals">a<sub>m</sub>(x) = min &#123;t ∈ T : C<sub>m</sub>(x,t) ≥ τ&#125;<br>A(x) = median<sub>m</sub> a<sub>m</sub>(x)</div>
@@ -32,11 +39,13 @@
           <div class="formula" role="math" aria-label="Percentage equals one hundred divided by the member count, times the sum of threshold exceedance indicators">P(x,t) = (100/N) Σ<sub>m=1…N</sub> 𝟙[C<sub>m</sub>(x,t) ≥ τ]</div>
           <p>C is concentration, N is the ensemble count, τ is the threshold, and 𝟙 is 1 when the condition holds, otherwise 0.</p>
         </ng-template>
+        </ng-container>
       </div>
       <select id="analysis-mode" [value]="state.mode" (change)="changeMode($any($event.target).value)" [disabled]="loading">
         <option value="timestep">Exceedance at a timestep</option>
         <option value="period">Exceedance in a duration</option>
         <option value="arrival">Arrival time</option>
+        <option value="duration">Duration above threshold</option>
       </select>
       <p class="variable-summary">{{substance}} · {{layer}}<span *ngIf="dimensions['height'] !== undefined"> · Height: {{dimensions['height']}} m</span></p>
       <p *ngIf="state.mode === 'timestep'">{{timestep}}</p>
@@ -64,13 +73,13 @@
       <p *ngIf="loading" role="status">Calculating statistics…</p>
       <p *ngIf="error" role="alert" class="error">{{error}}</p>
       <div *ngIf="state.ready" class="results">
-        <label class="agreement"><input type="checkbox" [checked]="state.agreement" (change)="toggleAgreement($any($event.target).checked)">{{state.mode === 'arrival' ? 'Arrival-time map' : 'Percentage agreement'}}</label>
+        <label class="agreement"><input type="checkbox" [checked]="state.agreement" (change)="toggleAgreement($any($event.target).checked)">{{state.mode === 'duration' ? 'Median duration map' : state.mode === 'arrival' ? 'Arrival-time map' : 'Percentage agreement'}}</label>
         <ng-container *ngIf="state.mode === 'timestep'">
         <label for="analysis-members">Member numbers:</label>
         <input id="analysis-members" type="text" placeholder="e.g. 1, 12, 50 or all" [value]="state.members" (input)="selectMembers($any($event.target).value)" [attr.aria-invalid]="!!memberError" aria-describedby="analysis-member-error">
         <p id="analysis-member-error" class="error" role="status">{{memberError}}</p>
         </ng-container>
-        <p class="cursor-hint">{{state.mode === 'arrival' ? 'Move over the map for the arrival histogram. Click to pin a location.' : state.mode === 'period' ? 'Move over the map for the maximum-concentration histogram. Click to pin a location.' : 'Move over the map for the concentration histogram. Click to pin a location.'}}</p>
+        <p class="cursor-hint">{{state.mode === 'duration' ? 'Move over the map for the duration histogram. Click to pin a location.' : state.mode === 'arrival' ? 'Move over the map for the arrival histogram. Click to pin a location.' : state.mode === 'period' ? 'Move over the map for the maximum-concentration histogram. Click to pin a location.' : 'Move over the map for the concentration histogram. Click to pin a location.'}}</p>
       </div>
     </div>
   </section>

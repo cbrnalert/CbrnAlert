@@ -1,3 +1,4 @@
+import { mapExportHeading } from './map-export-heading';
 import { MapExportControl } from './map-export-control';
 import { agreementReadout } from './agreement-readout';
 import { MapAction } from 'src/app/core/state/map.state';
@@ -153,7 +154,7 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
       if (this.plotContextHandler) this.map.off('contextmenu', this.plotContextHandler);
       this.plotContextHandler = undefined;
       this.currentUnit = null;
-      if (plot.type == 'flexpart' || ["percentage agreement", "arrival time"].includes(plot.legendLayer)) {
+      if (plot.type == 'flexpart' || ["percentage agreement", "arrival time", "duration above threshold"].includes(plot.legendLayer)) {
         if (!this.currentUnit) {
           this.currentUnit = (/spec\d+_mr/.test(plot.legendLayer)) ? 'ng/m³' : (/D_spec/.test(plot.legendLayer)) ? 'ng/m²' : null;
         }
@@ -165,13 +166,13 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
 
   arrivalHistogramPlot(plots: MapPlot[]): MapPlot | undefined {
     if (!this.map || this.mapService.animationActive) return undefined;
-    return plots.find(plot => plot.visible && (plot.legendLayer === 'arrival time' || ['maximum','timestep'].includes(plot.agreementInfo?.analysis || '')));
+    return plots.find(plot => plot.visible && (plot.legendLayer === 'arrival time' || ['maximum','timestep','duration'].includes(plot.agreementInfo?.analysis || '')));
   }
 
   legendPlots(plots: MapPlot[], active: MapPlot): MapPlot[] {
     const parentName = active.type === 'stats' ? active.name.split(' - ')[0] : active.name;
     const concentration = plots.find(p => p.type === 'flexpart' && p.name === parentName);
-    const agreement = plots.filter(p => p.visible && ['percentage agreement', 'arrival time'].includes(p.legendLayer) &&
+    const agreement = plots.filter(p => p.visible && ['percentage agreement', 'arrival time', 'duration above threshold'].includes(p.legendLayer) &&
       p.name.startsWith(`${parentName} - `));
     if (agreement.length) return agreement;
     return concentration ? (concentration.visible ? [concentration] : []) : (active.visible && active.metadata ? [active] : []);
@@ -181,7 +182,13 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
     this.mapService.leafletMap = map;
     this.map = map;
     this.addOpacityControl(map);
-    this.exportControl = new MapExportControl().addTo(map);
+    this.exportControl = new MapExportControl(() => {
+      const plots = this.store.selectSnapshot(MapPlotState.mapPlots);
+      const active = this.store.selectSnapshot(MapPlotState.activePlot);
+      const animationTime = this.mapService.animationActive
+        ? map.getContainer().querySelector('.animation-controls .timestep')?.textContent?.trim().replace(/\s*\(\d+\/\d+\)$/, '') || '' : undefined;
+      return mapExportHeading(plots, active?.id, animationTime);
+    }).addTo(map);
     // Initial map settings at startup
     map.fitBounds(latLngBounds(latLng(57, -15), latLng(43, 33)));
     this.layersControl.baseLayers['ESRI Satellite Map'].addTo(map);
@@ -201,8 +208,8 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
       if (coordsDiv) {
         coordsDiv.innerText = `Lat: ${e.latlng.lat.toFixed(5)}, Lon: ${e.latlng.lng.toFixed(5)}`;
         if (!this.mapService.animationActive) {
-          const agreement = this.store.selectSnapshot(MapPlotState.mapPlots).find(plot => plot.visible && ['percentage agreement', 'arrival time'].includes(plot.legendLayer));
-          if (agreement && !['arrival','maximum','timestep'].includes(agreement.agreementInfo?.analysis || '')) coordsDiv.innerText += '\n' + agreementReadout(agreement, e.latlng.lng, e.latlng.lat);
+          const agreement = this.store.selectSnapshot(MapPlotState.mapPlots).find(plot => plot.visible && ['percentage agreement', 'arrival time', 'duration above threshold'].includes(plot.legendLayer));
+          if (agreement && !['arrival','maximum','timestep','duration'].includes(agreement.agreementInfo?.analysis || '')) coordsDiv.innerText += '\n' + agreementReadout(agreement, e.latlng.lng, e.latlng.lat);
         }
       }
     });
@@ -428,7 +435,7 @@ export class LeafletMapComponent implements OnInit, OnDestroy {
   private onRightClick = (plot: MapPlot) => async (e: LeafletMouseEvent) => {
     if (this.mapService.animationActive) return;
     const { lat, lng } = e.latlng;
-    if (plot.legendLayer === 'arrival time' || ['maximum','timestep'].includes(plot.agreementInfo?.analysis || '')) {
+    if (plot.legendLayer === 'arrival time' || ['maximum','timestep','duration'].includes(plot.agreementInfo?.analysis || '')) {
       return;
     }
     const georaster = plot.data;

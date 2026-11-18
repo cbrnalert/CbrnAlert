@@ -66,3 +66,9 @@
 .arrival-legend .legend-ticks.max-tick { top: -6px; }
 .arrival-legend .unit-wrapper { position: absolute; top: 4px; left: 0; width: 100%; }
 .arrival-legend .unit { transform: none; font-size: 11px; }
+
+.duration-legend { width: 110px; padding: 22px 6px 6px; }
+.duration-legend .legend-scale { height: 200px; }
+.duration-legend .unit { font-size: 10px; }
+.duration-legend .legend-ticks { top: auto; bottom: -6px; }
+.duration-legend .legend-ticks.max-tick { top: -6px; bottom: auto; }

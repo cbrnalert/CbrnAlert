@@ -134,7 +134,7 @@ export class MapPlotsService {
     return statsPlots
   }
 
-  addTiff(geoRaster: any, colorbar: ColorbarData, arrival = false) {
+  addTiff(geoRaster: any, colorbar: ColorbarData, arrival = false, hideZero = false) {
     // inspired from https://github.com/GeoTIFF/georaster-layer-for-leaflet-example/blob/master/examples/color-scale.html
     const ticks = colorbar.ticks;
     const colors = colorbar.colors!;
@@ -147,8 +147,9 @@ export class MapPlotsService {
       georaster: geoRaster,
       pixelValuesToColorFn: pixelValues => {
         let pixelValue = pixelValues[0] * activity;
+        if (hideZero && pixelValue === 0) return "";
         if (arrival && (pixelValues[0] == null || !Number.isFinite(pixelValue) || pixelValue === null || pixelValue < 0)) {
-          return pixelValues[2] > 0 && pixelValues[1] === 0 ? 'rgba(128,128,128,0.18)' : '';
+          return ''; // Non-arrival and missing cells must not paint raster tile edges.
         }
         if (pixelValue < ticks[0] || (!arrival && pixelValue === ticks[0])) return "";
         let colorIndex: number;
@@ -185,10 +186,23 @@ export class MapPlotsService {
   }
 
   arrivalColorbar(start: string, end: string): ColorbarData {
-    const hours = Math.max(1e-9, (Date.parse(end) - Date.parse(start)) / 3600000);
-    const ticks = Array.from({length: 13}, (_, i) => hours * i / 12);
-    const scale = chroma.scale(['#2166ac', '#67a9cf', '#ffffbf', '#fdae61', '#b2182b']).domain([0, hours]);
-    return {ticks, colors: ticks.slice(1).map((value, i) => scale((ticks[i] + value) / 2).hex())};
+    return this.hoursColorbar((Date.parse(end) - Date.parse(start)) / 3600000);
+  }
+
+  durationColorbar(durationHours: number): ColorbarData {
+    return this.hoursColorbar(durationHours, true);
+  }
+
+  private hoursColorbar(durationHours: number, integerTicks = false): ColorbarData {
+    const hours = integerTicks ? Math.max(1, Math.ceil(durationHours)) : Math.max(1e-9, durationHours);
+    const step = Math.max(1, Math.ceil(hours / 12));
+    const ticks = integerTicks
+      ? Array.from({length: Math.ceil(hours / step) + 1}, (_, i) => Math.min(hours, i * step))
+      : Array.from({length: 13}, (_, i) => hours * i / 12);
+    const scale = chroma.scale(['#2166ac', '#67a9cf', '#ffffbf', '#fdae61', '#b2182b']).domain([0, ticks[ticks.length - 1]]);
+    return {ticks, colors: ticks.slice(1).map((value, i) => scale(integerTicks
+      ? ticks[ticks.length - 1] * (ticks.length > 2 ? i / (ticks.length - 2) : 1)
+      : (ticks[i] + value) / 2).hex())};
   }
 
   _colorScaleConc() {

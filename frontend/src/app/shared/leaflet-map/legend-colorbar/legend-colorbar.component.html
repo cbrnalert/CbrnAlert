@@ -1,4 +1,4 @@
-<div class="legend-container" [class.arrival-legend]="layerName === 'arrival time'">
+<div class="legend-container" [class.duration-legend]="layerName === 'duration above threshold'" [class.arrival-legend]="layerName === 'arrival time' || layerName === 'duration above threshold'">
   <div class="legend-scale">
     <div *ngFor="let color of colors; let i = index" class="flex flex-row">
       <i [style.background]="color"></i>

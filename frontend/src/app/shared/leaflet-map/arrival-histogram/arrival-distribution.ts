@@ -62,7 +62,8 @@ export function maximumDistribution(plot: MapPlot, longitude: number, latitude: 
   const column=Math.floor((longitude-grid.xmin)/grid.pixelWidth),row=Math.floor((grid.ymax-latitude)/grid.pixelHeight);
   if (column<0||row<0||column>=grid.width||row>=grid.height) return empty;
   const snapshot=info.analysis === 'timestep';
-  const pairs=snapshot?info.concentrationValues?.[row]?.[column]:info.maximumValues?.[row]?.[column];
+  const duration=info.analysis === 'duration';
+  const pairs=duration?info.durationValues?.[row]?.[column]:snapshot?info.concentrationValues?.[row]?.[column]:info.maximumValues?.[row]?.[column];
   const values:number[]=[];
   for (const [value,count] of pairs||[]) if (Number.isFinite(value)&&Number.isInteger(count)&&count>0&&count<=info.memberCount) {
     for (let i=0;i<count;i++) values.push(value);
@@ -71,12 +72,12 @@ export function maximumDistribution(plot: MapPlot, longitude: number, latitude: 
   const result:ArrivalDistribution={...empty,key:`${plot.id}:${row}:${column}`,inside:true,
     longitude:grid.xmin+(column+.5)*grid.pixelWidth,latitude:grid.ymax-(row+.5)*grid.pixelHeight,
     reached:info.counts?.[row]?.[column]||0,valid:info.validCounts?.[row]?.[column]||0,sampled:values.length,
-    message:!pairs?'Restart the backend and recalculate to load distributions.':!values.length?(snapshot?'No valid member data at this timestep':'No complete member data for this duration'):values.length<info.memberCount?`${snapshot?'Concentrations':'Maxima'} available for ${values.length}/${info.memberCount} members`:''};
+    message:!pairs?'Restart the backend and recalculate to load distributions.':!values.length?(snapshot?'No valid member data at this timestep':'No complete member data for this duration'):values.length<info.memberCount?`${duration?'Durations':snapshot?'Concentrations':'Maxima'} available for ${values.length}/${info.memberCount} members`:''};
   if (!values.length) return result;
-  const threshold=info.threshold!;
+  const threshold=duration?0:info.threshold!;
   const minimum=Math.min(0,values[0]);
-  const maximum=Math.max(values[values.length-1],threshold,Number.EPSILON);
-  const high=maximum+(maximum-minimum)*.05;
+  const maximum=duration ? info.durationHours! : Math.max(values[values.length-1],threshold,Number.EPSILON);
+  const high=duration?maximum:maximum+(maximum-minimum)*.05;
   const binWidth=(high-minimum)/CONCENTRATION_BIN_COUNT;
   // Anchor a uniform bin grid at the threshold instead of splitting one bin into two.
   const firstEdge=Math.floor((minimum-threshold)/binWidth);
@@ -84,13 +85,14 @@ export function maximumDistribution(plot: MapPlot, longitude: number, latitude: 
   const edges=Array.from({length:lastEdge-firstEdge+1},(_,i)=>threshold+(firstEdge+i)*binWidth);
   const counts=edges.slice(1).map(()=>0);
   for (const value of values) {
-    const index=Math.floor((value-threshold)/binWidth)-firstEdge;
+    const index=Math.min(counts.length-1,Math.floor((value-threshold)/binWidth)-firstEdge);
     if (index>=0&&index<counts.length) counts[index]++;
   }
   const quantile=(p:number)=>{const index=(values.length-1)*p,low=Math.floor(index),fraction=index-low;return values[low]+fraction*(values[Math.ceil(index)]-values[low]);};
   result.counts=counts;
+  if (duration) { result.reached=values.filter(value=>value>0).length; result.valid=values.length; }
   result.maximum={edges,centers:counts.map((_,i)=>(edges[i]+edges[i+1])/2),widths:counts.map(()=>binWidth*HISTOGRAM_BAR_FRACTION),
-    colors:counts.map((_,i)=>edges[i]>=threshold?'#5b8db8':'#aeb4bc'),threshold,unit:info.unit||'',
+    colors:counts.map((_,i)=>duration||edges[i]>=threshold?'#5b8db8':'#aeb4bc'),threshold,unit:duration?'h':info.unit||'',
     lower:quantile(.1),median:quantile(.5),upper:quantile(.9),range:[edges[0],edges[edges.length-1]]};
   return result;
 }

@@ -309,7 +309,7 @@ export class FlexpartService {
       { latitude, longitude, dimensions }, { params: { layer }, responseType: 'blob' });
   }
 
-  getPeriodAgreement(outputId: string, layer: string, dims: {[key: string]: number}, threshold: number, scope: 'period' | 'arrival' | 'snapshot' = 'period') {
+  getPeriodAgreement(outputId: string, layer: string, dims: {[key: string]: number}, threshold: number, scope: 'period' | 'arrival' | 'snapshot' | 'duration' = 'period') {
     return this.http.post<PeriodAgreement>(`${this.apiConfiguration.rootUrl}/flexpart/outputs/${encodeURIComponent(outputId)}/stats`,
       {dims, threshold}, {params: {layer, scope}});
   }

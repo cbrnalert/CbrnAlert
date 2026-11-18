@@ -102,3 +102,28 @@ describe('Single-timestep concentration distribution', () => {
     expect(maximumDistribution(plot,1.5,.5).message).toBe('No valid member data at this timestep');
   });
 });
+
+describe('Duration above threshold distribution', () => {
+  const plot={id:20,data:{xmin:0,ymax:1,pixelWidth:1,pixelHeight:1,width:3,height:1,values:[[[2,0,-9999]]]},
+    agreementInfo:{analysis:'duration',threshold:5,unit:'ng/m³',durationHours:4,memberCount:4,description:'',counts:[[3,0,0]],validCounts:[[3,4,0]],
+      durationValues:[[[[0,1],[2,1],[4,1]],[[0,4]],[]]]}} as MapPlot;
+  it('includes zero durations, excludes unavailable members, and preserves the maximum endpoint', () => {
+    const d=maximumDistribution(plot,.5,.5),hist=d.maximum!;
+    expect(d.counts.reduce((sum,n)=>sum+n,0)).toBe(3);
+    expect(d.sampled).toBe(3);expect(d.valid).toBe(3);expect(d.reached).toBe(2);
+    expect(hist.median).toBe(2);expect(hist.lower).toBeCloseTo(.4);expect(hist.upper).toBeCloseTo(3.6);
+    expect(hist.unit).toBe('h');expect(hist.range).toEqual([0,4]);
+    expect(new Set(hist.widths).size).toBe(1);
+    expect(new Set(hist.colors)).toEqual(new Set(['#5b8db8']));
+    expect(d.counts[d.counts.length-1]).toBe(1);
+  });
+  it('keeps the full-duration axis at zero-duration locations', () => {
+    const d=maximumDistribution(plot,1.5,.5);
+    expect(d.maximum!.range).toEqual([0,4]);expect(d.maximum!.median).toBe(0);
+    expect(d.counts[0]).toBe(4);expect(d.reached).toBe(0);
+  });
+  it('shows no duration chart when there are no complete member histories', () => {
+    const d=maximumDistribution(plot,2.5,.5);
+    expect(d.maximum).toBeUndefined();expect(d.message).toBe('No complete member data for this duration');
+  });
+});
